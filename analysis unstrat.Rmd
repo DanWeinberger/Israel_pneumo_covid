@@ -1,0 +1,439 @@
+---
+title: "pneumo israel"
+author: "Dan Weinberger"
+date: "2/11/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readxl)
+library(reshape2)
+library(lubridate)
+```
+
+
+CXR
+```{r}
+cx1 <- read_excel('./DONOTSYNC/X-rays Export.xlsx')
+
+cx1$date <- as.Date(paste(cx1$Year,cx1$Month,'01', sep='-'))
+
+cx1$one <- 1
+
+cx1$agec<- NA
+
+cx1$agec[cx1$Agemth<6] <- 1
+
+cx1$agec[cx1$Agemth<12 & cx1$Agemth>=6] <- 2
+
+cx1$agec[cx1$Agemth<24 & cx1$Agemth>=12] <- 3
+
+cx1$agec[cx1$Agemth>=24 ] <- 4
+
+cx1.m <- melt(cx1[,c('date',"CAAP_01" ,'one')], id.vars = c('date', "CAAP_01" ) )
+
+cx1.c <- dcast(cx1.m, date ~ CAAP_01, fun.aggregate = sum)
+
+all.dates <- cbind.data.frame('date'=seq.Date(from=min(cx1.c$date), to=max(cx1.c$date), 
+                                              by='month'))
+
+cx1.c <- merge(cx1.c, all.dates, all=T)
+
+#Stratified by age and ethnicity
+cx2.m <- melt(cx1[,c('date','agec',"CAAP_01" ,'one')], id.vars = c('date', "CAAP_01" ,'agec') )
+
+cx2.c <- dcast(cx2.m, date+agec ~ CAAP_01, fun.aggregate = sum)
+
+#Checks that dates are filled for all strata (shouldbe 8 strata total)
+range(table(cx2.c$date))
+
+
+
+```
+
+
+CXR
+```{r}
+vir1 <- read_excel('./DONOTSYNC/Viruses Export.xlsx')
+vir1$detect  <- "none"
+vir1$detect[vir1$Test_Result=='POS' ] <- vir1$Virus_tested[vir1$Test_Result=='POS' ]
+
+vir1$date <- as.Date(paste(vir1$Year,vir1$Month,'01', sep='-'))
+
+vir1$one <- 1
+
+vir1$agec<- NA
+
+vir1$agec[vir1$Agemth<6] <- 1
+
+vir1$agec[vir1$Agemth<12 & vir1$Agemth>=6] <- 2
+
+vir1$agec[vir1$Agemth<24 & vir1$Agemth>=12] <- 3
+
+vir1$agec[vir1$Agemth>=24 ] <- 4
+
+vir1.m <- melt(vir1[,c('date',"detect" ,'one')], id.vars = c('date', "detect" ) )
+
+vir1.c <- dcast(vir1.m, date ~ detect, fun.aggregate = sum)
+
+all.dates <- cbind.data.frame('date'=seq.Date(from=min(vir1.c$date),
+                                              to=max(vir1.c$date), 
+                                              by='month'))
+
+vir1.c <- merge(vir1.c, all.dates, all=T)
+
+#Stratified by age 
+vir2.m <- melt(vir1[,c('date','agec',"detect" ,'one')], id.vars = c('date', "detect" ,'agec') )
+
+vir2.c <- dcast(vir2.m, date+agec ~ detect, fun.aggregate = sum)
+
+vir2.c$testN <- apply(vir2.c[, -c(1:3)],1,sum)
+#Checks that dates are filled for all strata (shouldbe 8 strata total)
+range(table(vir2.c$date))
+
+
+
+```
+Combine the virus, carriage and X-rays datasets
+```{r}
+all1 <- merge(cx2.c, carr2.c, by=c( 'agec', 'date'), all=T)
+all1 <- merge(all1, vir2.c, by=c('agec', 'date'), all=T)
+
+all1$agec <- as.factor(all1$agec)
+
+all1$caap.pre <- all1$CAAP
+all1$caap.pre[all1$date>=as.Date('2020-03-01')] <- NA
+
+all1$non.caap.pre <- all1$`Non-CAAP LRI`
+all1$non.caap.pre[all1$date>=as.Date('2020-03-01')] <- NA
+
+all1$t <- interval(min(all1$date), all1$date) %/% months(1) 
+all1$sin12 <- sin(2*pi*all1$t/12)
+all1$cos12 <- cos(2*pi*all1$t/12)
+
+all1$sin6 <- sin(2*pi*all1$t/6)
+all1$cos6 <- cos(2*pi*all1$t/6)
+
+names(all1)[names(all1)=='Flu A'] <- 'FluA'
+names(all1)[names(all1)=='Flu B'] <- 'FluB'
+
+all1$one <-1
+
+
+```
+
+
+
+
+function to test each virus one by one or in combination
+```{r}
+mod.func <- function(outcome){
+    mod1 <- lapply(viruses, function(x){
+      eqn<- as.formula(paste0(outcome, ' ~ agec  + sin12 + cos12 +  sin6 + cos6+',x
+                 #,'+',' ' (',  x , ')*agec + 
+                  #(',  x , ')*Ethnicity' 
+                  ))
+     mod1 <- lm( eqn, data=all1)
+     })
+    r2.mod1 <- cbind.data.frame(viruses, 'r2'=sapply(mod1, function(x) summary(x)$adj.r.squared))
+    aic.mod1 <- cbind.data.frame(viruses, 'AIC'=sapply(mod1,function(x) AIC(x)))
+    
+    all1.pre <- all1[!is.na(all1[,outcome]),]
+    all.norsv <- all1.pre
+    all.noflu <- all1.pre
+    all.noadeno <- all1.pre
+    all.nohmpv<- all1.pre
+    all.novirus <- all1.pre
+    
+    all.norsv$RSV <- 0
+    all.noflu$FluA <- 0
+    all.noflu$FluB <- 0
+    all.noadeno$Adeno <- 0
+    all.nohmpv$hMPV <- 0
+    
+    all.novirus$Adeno <- 0
+    all.novirus$RSV <- 0
+    all.novirus$FluA <- 0
+    all.novirus$FluB <- 0
+    all.novirus$hMPV <- 0
+    
+    pred1 <-sapply(mod1, function(x) predict(x, newdata=all1.pre))
+    pred1.norsv <-sapply(mod1, function(x) predict(x, newdata=all.norsv))
+    pred1.noflu <-sapply(mod1, function(x) predict(x, newdata=all.noflu))
+    pred1.nohmpv <-sapply(mod1, function(x) predict(x, newdata=all.nohmpv))
+    pred1.noadeno <-sapply(mod1, function(x) predict(x, newdata=all.noadeno))
+
+        pred1.novirus <-sapply(mod1, function(x) predict(x, newdata=all.novirus))
+    
+    pred1.sum <- apply(pred1,2,sum)
+    pred1.norsv.sum <- apply(pred1.norsv,2,sum)
+    pred1.noflu.sum <- apply(pred1.noflu,2,sum)
+    pred1.noadeno.sum <- apply(pred1.noadeno,2,sum)
+    pred1.novirus.sum <- apply(pred1.novirus,2,sum)
+    pred1.nohmpv.sum <- apply(pred1.nohmpv,2,sum)
+    
+    attrib.pct.rsv <- (pred1.sum-pred1.norsv.sum)/pred1.sum * 100
+    attrib.pct.flu <- (pred1.sum-pred1.noflu.sum)/pred1.sum * 100
+    attrib.pct.adeno <- (pred1.sum-pred1.noadeno.sum)/pred1.sum * 100
+    attrib.pct.hmpv <- (pred1.sum-pred1.nohmpv.sum)/pred1.sum * 100
+
+    attrib.pct.virus <- (pred1.sum-pred1.novirus.sum)/pred1.sum * 100
+    
+    attrib.pct.combined <-
+      cbind.data.frame(attrib.pct.rsv,attrib.pct.flu,attrib.pct.adeno, attrib.pct.virus)
+    attrib.pct.combined$model <- viruses
+
+    
+    #Stratified
+    pred1.strat <- aggregate(pred1, 
+                                 by=list('agec'=all1.pre$agec),
+                                 FUN=sum)
+    pred1.strat.flu <- aggregate(pred1.noflu,
+                                     by=list('agec'=all1.pre$agec),
+                                     FUN=sum)
+    pred1.strat.rsv <- aggregate(pred1.norsv,
+                                     by=list('agec'=all1.pre$agec),
+                                     FUN=sum)
+    pred1.strat.adeno <- aggregate(pred1.noadeno,
+                                     by=list('agec'=all1.pre$agec),
+                                     FUN=sum)
+    
+    pred1.strat.hmpv <- aggregate(pred1.nohmpv,
+                                     by=list('agec'=all1.pre$agec),
+                                     FUN=sum)
+    
+    
+    pred1.strat.novirus <- aggregate(pred1.novirus,
+                                     by=list('agec'=all1.pre$agec),
+                                     FUN=sum)
+attrib.pct.rsv.strat <-cbind.data.frame(pred1.strat[,c(1:2)], (pred1.strat[,-c(1:2)]-pred1.strat.rsv[,-c(1:2)])/pred1.strat[,-c(1:2)] * 100)
+   attrib.pct.flu.strat <-cbind.data.frame(pred1.strat[,c(1:2)], (pred1.strat[,-c(1:2)]-pred1.strat.flu[,-c(1:2)])/pred1.strat[,-c(1:2)] * 100)
+attrib.pct.adeno.strat <-cbind.data.frame(pred1.strat[,c(1:2)], (pred1.strat[,-c(1:2)]-pred1.strat.adeno[,-c(1:2)])/pred1.strat[,-c(1:2)] * 100)
+attrib.pct.hmpv.strat <-cbind.data.frame(pred1.strat[,c(1:2)], (pred1.strat[,-c(1:2)]-pred1.strat.hmpv[,-c(1:2)])/pred1.strat[,-c(1:2)] * 100)
+attrib.pct.virus.strat <-cbind.data.frame(pred1.strat[,c(1:2)], (pred1.strat[,-c(1:2)]-pred1.strat.novirus[,-c(1:2)])/pred1.strat[,-c(1:2)] * 100)
+names(attrib.pct.virus.strat) <- c('agec',viruses)
+
+    
+    out.list <- list('attrib.pct.combined'=attrib.pct.combined,'attrib.pct.virus.strat'=attrib.pct.virus.strat, 'aic.mod1'=aic.mod1,'mod1'=mod1, 'pred1.strat'=pred1.strat)
+    return(out.list)
+}
+
+```
+
+```{r}
+
+#Viral panel for all; rhino only started 2019 so exclude here
+viruses <- c('one','none','FluA','FluB','RSV','Adeno','hMPV', 'FluA+FluB', 'FluA+FluB+RSV','RSV+none', 'Adeno+testN', 'RSV+Adeno','RSV+Adeno+none','testN','testN+RSV', 'RSV+hMPV','Adeno+hMPV', 'FluA+FluB+RSV+Adeno', 'FluA+FluB+RSV+Adeno + hMPV'  ) #paraflu
+
+attrib.pct.caap <- mod.func("caap.pre")
+attrib.pct.non.caap <- mod.func("non.caap.pre")
+
+attrib.pct.caap$attrib.pct.combined
+
+attrib.pct.non.caap$attrib.pct.combined
+
+attrib.pct.caap$attrib.pct.virus.strat
+
+attrib.pct.non.caap$attrib.pct.virus.strat
+
+attrib.pct.caap$pred1.strat
+
+```
+
+```{r}
+all1$log.rsv <- log(all1$RSV+0.5)
+  mod1 <- glm.nb(caap.pre ~ agec + Ethnicity + sin12 + cos12 +  sin6 + cos6+ log.rsv + log.rsv*agec , data=all1)
+  
+summary(mod1)
+
+mod2 <- lm(caap.pre ~ agec + Ethnicity + sin12 + cos12 +  sin6 + cos6+ RSV + RSV*Ethnicity + RSV*agec, data=all1)
+  
+summary(mod2)
+
+```
+
+## Function for log-linked model
+```{r}
+
+mod.func.log <- function(outcome){
+    mod1 <- lapply(viruses, function(x){
+      eqn<- as.formula(paste0(outcome, ' ~ agec + Ethnicity + ',
+                              'sin12 + cos12 +',
+                              x , '+ (',  x , ')*Ethnicity'
+                 #,'+',' ' (',  x , ')*agec + 
+                  #(',  x , ')*Ethnicity' 
+                  ))
+     mod1 <- glm.nb( eqn, data=all1)
+     })
+    aic.mod1 <- cbind.data.frame(viruses, 'AIC'=sapply(mod1,function(x) AIC(x)))
+    
+    all1.pre <- all1[!is.na(all1[,outcome]),]
+    all.norsv <- all1.pre
+    all.noflu <- all1.pre
+    all.noadeno <- all1.pre
+    all.nohmpv<- all1.pre
+    all.novirus <- all1.pre
+    
+    all.norsv$RSV <- 0
+    all.noflu$FluA <- 0
+    all.noflu$FluB <- 0
+    all.noadeno$Adeno <- 0
+    all.nohmpv$hMPV <- 0
+    
+    all.novirus$Adeno <- 0
+    all.novirus$RSV <- 0
+    all.novirus$FluA <- 0
+    all.novirus$FluB <- 0
+    all.novirus$hMPV <- 0
+    
+    pred1 <-sapply(mod1, function(x) predict(x, newdata=all1.pre, type='response'))
+    pred1.norsv <-sapply(mod1, function(x) predict(x, newdata=all.norsv, type='response'))
+    pred1.noflu <-sapply(mod1, function(x) predict(x, newdata=all.noflu, type='response'))
+    pred1.nohmpv <-sapply(mod1, function(x) predict(x, newdata=all.nohmpv, type='response'))
+    pred1.noadeno <-sapply(mod1, function(x) predict(x, newdata=all.noadeno, type='response'))
+
+        pred1.novirus <-sapply(mod1, function(x) predict(x, newdata=all.novirus, type='response'))
+    
+    pred1.sum <- apply(pred1,2,sum)
+    pred1.norsv.sum <- apply(pred1.norsv,2,sum)
+    pred1.noflu.sum <- apply(pred1.noflu,2,sum)
+    pred1.noadeno.sum <- apply(pred1.noadeno,2,sum)
+    pred1.novirus.sum <- apply(pred1.novirus,2,sum)
+    pred1.nohmpv.sum <- apply(pred1.nohmpv,2,sum)
+    
+    attrib.pct.rsv <- (pred1.sum-pred1.norsv.sum)/pred1.sum * 100
+    attrib.pct.flu <- (pred1.sum-pred1.noflu.sum)/pred1.sum * 100
+    attrib.pct.adeno <- (pred1.sum-pred1.noadeno.sum)/pred1.sum * 100
+    attrib.pct.hmpv <- (pred1.sum-pred1.nohmpv.sum)/pred1.sum * 100
+
+    attrib.pct.virus <- (pred1.sum-pred1.novirus.sum)/pred1.sum * 100
+    
+    attrib.pct.combined <-
+      cbind.data.frame(attrib.pct.rsv,attrib.pct.flu,attrib.pct.adeno, attrib.pct.virus)
+    attrib.pct.combined$model <- viruses
+
+    
+    #Stratified
+    pred1.strat <- aggregate(pred1, 
+                                 by=list('agec'=all1.pre$agec,
+                                         'Ethnicity'=all1.pre$Ethnicity),
+                                 FUN=sum)
+    pred1.strat.flu <- aggregate(pred1.noflu,
+                                     by=list('agec'=all1.pre$agec,
+                                             'Ethnicity'=all1.pre$Ethnicity),
+                                     FUN=sum)
+    pred1.strat.rsv <- aggregate(pred1.norsv,
+                                     by=list('agec'=all1.pre$agec,
+                                             'Ethnicity'=all1.pre$Ethnicity),
+                                     FUN=sum)
+    pred1.strat.adeno <- aggregate(pred1.noadeno,
+                                     by=list('agec'=all1.pre$agec,
+                                             'Ethnicity'=all1.pre$Ethnicity),
+                                     FUN=sum)
+    
+    pred1.strat.hmpv <- aggregate(pred1.nohmpv,
+                                     by=list('agec'=all1.pre$agec,
+                                             'Ethnicity'=all1.pre$Ethnicity),
+                                     FUN=sum)
+    
+    
+    pred1.strat.novirus <- aggregate(pred1.novirus,
+                                     by=list('agec'=all1.pre$agec,
+                                             'Ethnicity'=all1.pre$Ethnicity),
+                                     FUN=sum)
+attrib.pct.rsv.strat <-cbind.data.frame(pred1.strat[,c(1:2)], (pred1.strat[,-c(1:2)]-pred1.strat.rsv[,-c(1:2)])/pred1.strat[,-c(1:2)] * 100)
+   attrib.pct.flu.strat <-cbind.data.frame(pred1.strat[,c(1:2)], (pred1.strat[,-c(1:2)]-pred1.strat.flu[,-c(1:2)])/pred1.strat[,-c(1:2)] * 100)
+attrib.pct.adeno.strat <-cbind.data.frame(pred1.strat[,c(1:2)], (pred1.strat[,-c(1:2)]-pred1.strat.adeno[,-c(1:2)])/pred1.strat[,-c(1:2)] * 100)
+attrib.pct.hmpv.strat <-cbind.data.frame(pred1.strat[,c(1:2)], (pred1.strat[,-c(1:2)]-pred1.strat.hmpv[,-c(1:2)])/pred1.strat[,-c(1:2)] * 100)
+attrib.pct.virus.strat <-cbind.data.frame(pred1.strat[,c(1:2)], (pred1.strat[,-c(1:2)]-pred1.strat.novirus[,-c(1:2)])/pred1.strat[,-c(1:2)] * 100)
+names(attrib.pct.virus.strat) <- c('agec','ethnicity',viruses)
+
+    
+    out.list <- list('attrib.pct.combined'=attrib.pct.combined,'attrib.pct.virus.strat'=attrib.pct.virus.strat, 'aic.mod1'=aic.mod1,'mod1'=mod1, 'pred1.strat'=pred1.strat)
+    return(out.list)
+}
+
+```
+
+```{r}
+attrib.pct.caap <- mod.func.log("caap.pre")
+attrib.pct.non.caap <- mod.func.log("non.caap.pre")
+
+attrib.pct.caap$attrib.pct.combined
+
+attrib.pct.non.caap$attrib.pct.combined
+
+attrib.pct.caap$attrib.pct.virus.strat
+
+attrib.pct.non.caap$attrib.pct.virus.strat
+```
+
+
+
+
+Include carriage
+```{r}
+mod1 <- glm( caap.pre ~ 
+              (sin12 + cos12 + sin6 + cos6)* Ethnicity +
+              #(sin12 + cos12 +  sin6 + cos6)*agec +
+               #FluA+
+               #FluB+
+               #Paraflu+
+               #Rhino+
+              RSV + 
+              # Adeno+
+               prev.lo+
+             #  prev.hi+
+               RSV*agec +
+               RSV*prev.lo
+             # Adeno*agec 
+             # RSV*prev.lo +
+              # Adeno*prev.lo +
+                #RSV*prev.hi +
+             #  Adeno*prev.hi 
+              # prev.lo*agec
+              , data=all1, family=gaussian)
+summary(mod1)
+
+all1$pred1 <- predict(mod1, newdata=all1, type='response')
+
+
+all1.m <- melt(all1[,c('CAAP','pred1','date','agec','Ethnicity')], id.vars=c('date','agec','Ethnicity'))
+all1.c <- acast(all1.m, agec~Ethnicity~date~variable)
+
+all.dates <- as.Date(dimnames(all1.c)[[3]])
+for(i in dimnames(all1.c)[[1]]){
+  for(j in dimnames(all1.c)[[2]]){
+plot(all.dates,all1.c[i,j,,'CAAP'], type='l', bty='l', main=paste(i,j))
+points(all.dates,all1.c[i,j,,'pred1'], type='l', col='gray')
+  }
+}
+
+
+```
+Just do fully-stratified model
+```{r}
+all.spl <- split(all1, cbind.data.frame(all1$agec, all1$Ethnicity))
+
+mod2 <- lapply(all.spl, function(x){
+  mods <- glm( caap.pre ~ 
+              sin12 + cos12 + sin6 + cos6+
+              prev.lo+
+               RSV +
+               RSV*prev.lo
+         
+              , data=x, family=gaussian)
+})
+
+summary1 <- lapply(mod2, summary)
+pred1 <- mapply(predict, mod2, newdata=all.spl, SIMPLIFY=F )
+
+for(i in 1:length(all.spl)){
+plot(all.spl[[i]]$date, all.spl[[i]]$CAAP, type='l')
+points(all.spl[[i]]$date, pred1[[i]], type='l', col='red')
+}
+```
+
+
+
