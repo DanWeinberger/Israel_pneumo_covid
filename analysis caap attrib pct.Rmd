@@ -12,11 +12,16 @@ library(reshape2)
 library(ggplot2)
 library(lubridate)
 library(dplyr)
+library(INLA)
 library(tidyr)
+library(pbapply)
 
 source('./R/format_carr.R')
 source('./R/format_caap.R')
 source('./R/format_virus.R')
+source('./R/format_ipd_func.R')
+source('./R/inla_model2.R')
+source('./R/gen_pred_interval_inla_ridge_ar1.R')
 
 ```
 
@@ -151,528 +156,107 @@ all1 <- all1[!is.na(all1$agec),]
 ```
 
 
-## Regression
 
-Simple first
-Note if include 12 month harmonic, it gives all the credit (correctly) to the viruses; if add in 12+6 month harmonics, the harmonics steal the credit. Adding prevalence doesn't improve the model
+## INLA
+
+```{r}
+#all1.spl <- split(all1,paste(all1$agec, all1$ethnicity) )
+#res1 <- pblapply(all1.spl, inla_model2, outcome.var='caap.pre', plot.var='CAAP')
+
+res1 <- inla_model2(all1,  outcome.var='caap.pre', plot.var='CAAP')
+
+```
 
 ```{r}
 
-    ds.ls <- 
-      split(all1, paste(all1$agec, all1$ethnicity))
+preds_time_all <- res1$all$preds_time
+
+preds_time_NoVirus <- res1$NoVirus$preds_time
+
+preds_time_all$pred_lcl_post <- preds_time_all$pred_lcl
+preds_time_all$pred_lcl_post[preds_time_all$date<'2020-03-01'] <- NA
+
+preds_time_all$pred_ucl_post <- preds_time_all$pred_ucl
+preds_time_all$pred_ucl_post[preds_time_all$date<'2020-03-01'] <- NA
+
+preds_time_all$pred_mean_post <- preds_time_all$pred_mean
+preds_time_all$pred_mean_post[preds_time_all$date<'2020-03-01'] <- NA
+
+preds_time_all$pred_mean_pre <- preds_time_all$pred_mean
+preds_time_all$pred_mean_pre[preds_time_all$date>='2020-03-01'] <- NA
+
+ggplot(preds_time_all, aes(x=date, y=CAAP)) +
+         geom_line(color='gray')+
+    geom_line(data=preds_time_all,aes(x=date, y=pred_mean), color='black', lty=2)+
   
-    mod1.res <- 
-      lapply(ds.ls,lm.mod.fit.func, outcome.var='caap.pre', covars=c('influenza.a','influenza.b','RSV','hMPV' )) 
+        geom_line(data=preds_time_NoVirus, aes(x=date, y=pred_mean), col='red')+
+  
+  facet_grid(agec~ethnicity) +
+ # geom_line(aes(x=date, y=CAAP))+
+#  coord_cartesian(ylim = c(0, 75)) + 
+  geom_hline(yintercept=0) +
+  theme_classic()
 
-    attrib.pct <- t(sapply(mod1.res,'[[','attrib.pct'))
-    attrib.pct
-    
-    fit.plots <- lapply(mod1.res,'[[','obs.exp.plot')
-    fit.plots
-    
+
 ```
-Try adding in carriage
 
+```{r, fig.width=4, fig.height=4}
+ggplot(preds_time_all, aes(x=date, y=CAAP)) +
+         geom_line()+
+          geom_line(data=preds_time_NoVirus) +
+         geom_ribbon( aes(x=date, ymin=pred_lcl_post, ymax=pred_ucl_post),alpha=0.1, col='white' )+
+  facet_grid(agec~ethnicity) +
+  geom_line(aes(x=date, y=CAAP))+
+  geom_line(aes(x=date, y=pred_mean_pre), color='black', lty=2)+
+  geom_line(aes(x=date, y=pred_mean_post), color='black', lty=2)+
+#  coord_cartesian(ylim = c(0, 75)) + 
+  geom_hline(yintercept=0) +
+  theme_classic()
+```
+Attrib pct
 ```{r}
-mod2.res <- 
-      lapply(ds.ls,lm.mod.fit.func, outcome.var='caap.pre', covars=c('influenza.a','influenza.b','RSV','hMPV','prev' ))
+preds.iter <- res1$all$preds_covars.m
+names(preds.iter) <- c('agec','ethnicity','date','variable', 'pred')
 
-AIC1 <- sapply(mod1.res, '[[', 'AIC')
-AIC2 <- sapply(mod2.res, '[[', 'AIC')
+preds.iter.NoFlu <- res1$NoFlu$preds_covars.m
+names(preds.iter.NoFlu) <- c('agec','ethnicity','date','variable', 'pred_NoFlu')
 
-cbind(AIC1, AIC2) #if only use pre-pcv data, these should be comparable
-```
+preds.iter.NoRSV <- res1$NoRSV$preds_covars.m
+names(preds.iter.NoRSV) <- c('agec','ethnicity','date','variable', 'pred_NoRSV')
 
-
-
-
-Look at non-CAAP 
-```{r}
-    mod3.res <- 
-      lapply(ds.ls,lm.mod.fit.func, outcome.var='non.caap.pre', covars=c('influenza.a','influenza.b','RSV','hMPV' ), plotvar='nonCAAP') 
-
-    attrib.pct3 <- t(sapply(mod3.res,'[[','attrib.pct'))
-    attrib.pct3
-    
-    fit.plots3 <- lapply(mod3.res,'[[','obs.exp.plot')
-    fit.plots3
-```
+preds.iter.NoVirus <- res1$NoVirus$preds_covars.m
+names(preds.iter.NoVirus) <- c('agec','ethnicity','date','variable', 'pred_NoVirus')
 
 
+preds.iter2 <- merge(preds.iter, preds.iter.NoVirus, by=c('agec','ethnicity','date','variable'))
 
-```{r}
-    mod4.res <- 
-      lapply(ds.ls,lm.mod.fit.func, outcome.var='nonCAAP', covars=c('influenza.a','influenza.b','RSV','hMPV' )) 
+preds.iter2 <- merge(preds.iter2, preds.iter.NoFlu, by=c('agec','ethnicity','date','variable'))
 
-  attrib.pct4 <- t(sapply(mod4.res,'[[','attrib.pct'))
-    attrib.pct4
-    
-    fit.plots4 <- lapply(mod4.res,'[[','obs.exp.plot')
-    fit.plots4
-```
+preds.iter2 <- merge(preds.iter2, preds.iter.NoRSV, by=c('agec','ethnicity','date','variable'))
 
 
-
-
-function to test each virus one by one or in combination
-```{r}
-#Viral panel for all; rhino only started 2019 so exclude here
-viruses <- c('one','influenza.a','influenza.b','RSV','respiratory.adenovirus','hMPV', 'parainfluenza',
-             'influenza.a+influenza.b',
-             'influenza.a+influenza.b+RSV',
-             'influenza.a+influenza.b+RSV+hMPV',
-             'influenza.a+influenza.b+RSV+hMPV + parainfluenza',
-             'influenza.a+influenza.b+RSV+hMPV + parainfluenza +respiratory.adenovirus',
-              'RSV+respiratory.adenovirus',
-             'RSV+respiratory.adenovirus',
-             'RSV+hMPV',
-             'respiratory.adenovirus+hMPV', 
-             'influenza.a+influenza.b+RSV+respiratory.adenovirus',
-             'influenza.a+influenza.b+RSV+respiratory.adenovirus + hMPV', 
-             'RSV + influenza.a * epiyr' , 'RSV*agec' , 'agg.RSV') #paraflu
-
-all1$one <-1
-
-mod.func <- function(outcome){
-    mod1 <- lapply(viruses, function(x){
-      eqn<- as.formula(paste0(outcome, ' ~ (sin12+ cos12 + sin6 + cos6 + sin3 +cos3 +t)*ethnicity*agec   +',x                  ))
-     mod1 <- lm( eqn, data=all1)
-     })
-  names(mod1) <- viruses
-    r2.mod1 <- cbind.data.frame(viruses, 'r2'=sapply(mod1, function(x) summary(x)$adj.r.squared))
-    aic.mod1 <- cbind.data.frame(viruses, 'AIC'=sapply(mod1,function(x) AIC(x)))
-    
-    all1.pre <- all1[!is.na(all1[,outcome]),]
-    all.norsv <- all1.pre
-    all.noflu <- all1.pre
-    all.noadeno <- all1.pre
-    all.nohmpv<- all1.pre
-    all.novirus <- all1.pre
-    
-    all.norsv$RSV <- 0
-    all.noflu$influenza.a <- 0
-    all.noflu$influenza.b <- 0
-    all.noadeno$respiratory.adenovirus <- 0
-    all.nohmpv$hMPV <- 0
-    
-    all.novirus$respiratory.adenovirus <- 0
-    all.novirus$RSV <- 0
-    all.novirus$influenza.a <- 0
-    all.novirus$influenza.b <- 0
-    all.novirus$hMPV <- 0
-    all.novirus$parainfluenza <- 0
-    
-    pred1 <-sapply(mod1, function(x) predict(x, newdata=all1.pre))
-    pred1.norsv <-sapply(mod1, function(x) predict(x, newdata=all.norsv))
-    pred1.noflu <-sapply(mod1, function(x) predict(x, newdata=all.noflu))
-    pred1.nohmpv <-sapply(mod1, function(x) predict(x, newdata=all.nohmpv))
-    pred1.noadeno <-sapply(mod1, function(x) predict(x, newdata=all.noadeno))
-
-        pred1.novirus <-sapply(mod1, function(x) predict(x, newdata=all.novirus))
-    out.df <- 
-    
-    pred1.sum <- apply(pred1,2,sum)
-    pred1.norsv.sum <- apply(pred1.norsv,2,sum)
-    pred1.noflu.sum <- apply(pred1.noflu,2,sum)
-    pred1.noadeno.sum <- apply(pred1.noadeno,2,sum)
-    pred1.novirus.sum <- apply(pred1.novirus,2,sum)
-    pred1.nohmpv.sum <- apply(pred1.nohmpv,2,sum)
-    
-    attrib.pct.rsv <- (pred1.sum-pred1.norsv.sum)/pred1.sum * 100
-    attrib.pct.flu <- (pred1.sum-pred1.noflu.sum)/pred1.sum * 100
-    attrib.pct.adeno <- (pred1.sum-pred1.noadeno.sum)/pred1.sum * 100
-    attrib.pct.hmpv <- (pred1.sum-pred1.nohmpv.sum)/pred1.sum * 100
-
-    attrib.pct.virus <- (pred1.sum-pred1.novirus.sum)/pred1.sum * 100
-    
-    attrib.pct.combined <-
-      cbind.data.frame(attrib.pct.rsv,attrib.pct.flu,attrib.pct.adeno,attrib.pct.hmpv, attrib.pct.virus)
-    attrib.pct.combined$model <- viruses
-
-    
-    #Stratified
-      all.preds <-  list(pred1,pred1.norsv,pred1.noflu,pred1.noadeno,pred1.nohmpv,pred1.novirus)
-      
-      names(all.preds) <- c('overall','norsv','noflu', 'noadeno','nohmpv', 'novirus')
-      
-    pred.strata.age.eth <- lapply(all.preds, function(pred.ds){
-              aggregate(pred.ds, 
-                                 by=list('agec'=all1.pre$agec,
-                                         'Ethnicity'=all1.pre$Ethnicity),
-                                 FUN=sum)
-    })
-    pred.strata.age <- lapply(all.preds, function(pred.ds){
-              aggregate(pred.ds, 
-                                 by=list('agec'=all1.pre$agec),
-                                 FUN=sum)
-    })
-
-    #By age and ethnicity
-   attrib.pcts.age.eth <- lapply(pred.strata.age.eth[-1], function(x){
-      ds1 <-cbind.data.frame(pred.strata.age.eth[[1]][,c(1:2)], ((pred.strata.age.eth[[1]][,-c(1:2)]) - x[,-c(1:2)])/(pred.strata.age.eth[[1]][,-c(1:2)])*100 )
-     names(ds1) <- c('agec','ethnicity',viruses)
-  return(ds1)
-                 })
-   names(attrib.pcts.age.eth) <- names(pred.strata.age.eth[-1])
-   
-   #By age
-      attrib.pcts.age <- lapply(pred.strata.age[-1], function(x){
-      ds1 <-cbind.data.frame(pred.strata.age[[1]][,c(1)], ((pred.strata.age[[1]][,-c(1)]) - x[,-c(1)])/(pred.strata.age[[1]][,-c(1)])*100 )
-     names(ds1) <- c('agec',viruses)
-  return(ds1)
-                 })
-   names(attrib.pcts.age) <- names(pred.strata.age[-1])
-   
-    out.list <- list('attrib.pcts.age'=attrib.pcts.age,'attrib.pcts.age.eth'=attrib.pcts.age.eth, 'aic.mod1'=aic.mod1,'mod1'=mod1)
-    return(out.list)
-}
-
-```
-
-```{r}
-
-attrib.pct.caap <- mod.func("caap.pre")
-attrib.pct.non.caap <- mod.func("non.caap.pre")
-
-#Modle with RSV only
-attrib.pct.caap$attrib.pcts.age$norsv[,c('agec','RSV*agec')]
-attrib.pct.non.caap$attrib.pcts.age$norsv[,c('agec','RSV*agec')]
-
-attrib.pct.caap$attrib.pcts.age.eth$norsv[,c('agec','ethnicity',"RSV*agec")]
-attrib.pct.non.caap$attrib.pcts.age.eth$norsv[,c('agec','ethnicity',"RSV*agec")]
-
-#RSV Aggregated across age group
-
-attrib.pct.caap$attrib.pcts.age.eth$norsv[,c('agec','ethnicity',"agg.RSV")]
-attrib.pct.non.caap$attrib.pcts.age.eth$norsv[,c('agec','ethnicity',"agg.RSV")]
-
-# #Model with RSV +hMPV
-# attrib.pct.caap$attrib.pcts.age.eth$norsv[,c('agec','ethnicity',"RSV+hMPV")]
-# attrib.pct.non.caap$attrib.pcts.age.eth$norsv[,c('agec','ethnicity',"RSV+hMPV")]
-# 
-# #Model wih RSV and flu
-# attrib.pct.caap$attrib.pcts.age.eth$norsv[,c('agec','ethnicity',"RSV + FluA * epiyr" )]
-# attrib.pct.non.caap$attrib.pcts.age.eth$norsv[,c('agec','ethnicity',"RSV + FluA * epiyr" )]
-# 
-# attrib.pct.caap$attrib.pcts.age.eth$noflu[,c('agec','ethnicity',"RSV + FluA * epiyr" )]
-# attrib.pct.non.caap$attrib.pcts.age.eth$noflu[,c('agec','ethnicity',"RSV + FluA * epiyr" )]
-# 
-# 
-# attrib.pct.caap$attrib.pcts.age.eth$nohmpv[,c('agec','ethnicity',"RSV+hMPV")]
-# attrib.pct.non.caap$attrib.pcts.age.eth$nohmpv[,c('agec','ethnicity',"RSV+hMPV")]
-# 
-# 
-# 
-# ##Model with RSV +adeno
-# attrib.pct.caap$attrib.pcts.age.eth$norsv[,c('agec','ethnicity',"RSV+Adeno")]
-# attrib.pct.non.caap$attrib.pcts.age.eth$norsv[,c('agec','ethnicity',"RSV+Adeno")]
-# 
-# attrib.pct.caap$attrib.pcts.age.eth$noadeno[,c('agec','ethnicity',"RSV+Adeno")]
-# attrib.pct.non.caap$attrib.pcts.age.eth$noadeno[,c('agec','ethnicity',"RSV+Adeno")]
-# 
-# #Novirus
-# attrib.pct.caap$attrib.pcts.age.eth$novirus[,c('agec','ethnicity',"FluA+FluB+RSV+Adeno + hMPV")]
-# attrib.pct.non.caap$attrib.pcts.age.eth$novirus[,c('agec','ethnicity',"FluA+FluB+RSV+Adeno + hMPV")]
-
-
-```
-
-Plots
-```{r, fig.width=5, fig.height=9}
-par(mfcol=c(4,2))
-lapply(names(all.spl), function(x){
-  p1 <- all.spl[[x]]
-  plot(p1$date, p1$RSV/max(p1$RSV), type='l', main=x, bty='l')
-  #points(p1$date, p1$hMPV/max(p1$hMPV), type='l', col='blue')
-  points(p1$date, p1$CAAP/max(p1$CAAP), type='l', col='red')
-}
-)
-```
-
-
-## Test RSv and hMPV together
-
-Here we are using RSv and hMPV aggregated 
-```{r}
-
-
-mod1 <- lm( caap.pre ~    agec*(sin12+ cos12 + sin6 + cos6 + t + sin3 +cos3) + Ethnicity*(sin12+ cos12 + sin6 + cos6 + t + sin3 +cos3) +
-              agg.RSV*agec +agg.hMPV*agec  
-            #+  agg.FluA*agec + agg.FluB*agec   
-            , data=all1)
-summary(mod1)
-
-all1.pre <- all1[!is.na(all1$caap.pre),] 
-all1.novirus <- all1[!is.na(all1$caap.pre),] 
-all1.novirus$agg.RSV <- 0 
-all1.novirus$agg.FluA <- 0 
-all1.novirus$agg.FluB <- 0 
-all1.novirus$agg.hMPV <- 0 
-
-pred1 <- predict(mod1, newdata=all1.pre)
-pred1.novirus <- predict(mod1, newdata=all1.novirus)
-
-#Overall attrib Pct
-(sum(pred1) -sum(pred1.novirus))/sum(pred1)*100
-
-
-#Attrib Pct Oct-April
-pred1.winter <- pred1[all1.pre$month %in% c(11,12,1,2,3) ]
-pred1.novirus.winter <- pred1.novirus[all1.pre$month %in% c(11,12,1,2,3) ]
-(sum(pred1.winter) -sum(pred1.novirus.winter))/sum(pred1.winter)*100
-
-
-pred.ds <- cbind.data.frame('agec'=all1.pre$agec, 'Ethnicity'=all1.pre$Ethnicity, 'CAAP'=all1.pre$CAAP, pred1, pred1.novirus)
-
-#Agec Attrib Pct
-pred.ds.agg <- aggregate(pred.ds[,-c(1:2)], by=list('agec'=pred.ds$agec), FUN=sum)
-
-attrib.pct.grp <- 
-  (pred.ds.agg$pred1 - pred.ds.agg$pred1.novirus)/pred.ds.agg$pred1*100
-
-attrib.pct.grp
+attrib_pct <- preds.iter2 %>%
+  group_by( agec,variable) %>%
+  summarize(pred=sum(pred), pred_NoVirus=sum(pred_NoVirus) ) %>%
+  mutate(attrib_pct_Virus = 100*(pred-pred_NoVirus)/pred ) %>%
+  ungroup() %>%
+  group_by(agec) %>%
+  summarize( attrib_pct_med = median(attrib_pct), 
+             attrib_pct_lcl=quantile(attrib_pct, 0.025), 
+             attrib_pct_ucl=quantile(attrib_pct, 0.975))
  
-#Agec and ethnicity
-pred.ds.agg <- aggregate(pred.ds[,-c(1:2)], by=list('agec'=pred.ds$agec, 'Ethnicity'=pred.ds$Ethnicity), FUN=sum) 
+attrib_pct
 
-attrib.pct.grp <- 
-  (pred.ds.agg$pred1 - pred.ds.agg$pred1.novirus)/pred.ds.agg$pred1*100
-
-attrib.pct.grp
-
-
-
-
-#Plot the projections
-all1.novirus <- all1
-all1.novirus$agg.RSV <- 0 
-#all1.novirus$agg.FluA <- 0 
-#all1.novirus$agg.FluB <- 0 
-all1.novirus$agg.hMPV <- 0 
-pred1.proj <- predict(mod1, newdata=all1)
-pred1.novirus.proj <- predict(mod1, newdata=all1.novirus)
-
-
-plot.ds <- cbind.data.frame('agec'=all1$agec,'Ethnicity'=all1$Ethnicity,'CAAP'=all1$CAAP, 'date'=all1$date, pred1.proj,pred1.novirus.proj )
-plot.ds.spl <- split(plot.ds, paste0(plot.ds$agec, plot.ds$Ethnicity))
-
-par(mfrow=c(4,2), mar=c(2,2,0,0) )
-lapply(plot.ds.spl, function(x){
-  plot( x$date, x$CAAP, type='l', col='gray')
-  points( x$date, x$pred1.novirus.proj, type='l', col='blue')
-  points( x$date, x$pred1.proj, type='l', col='red')
-  })
-
-```
-
-## ANY virus
-
-Here we are using RSv and hMPV aggregated 
-```{r}
-
-all1$agg.any <- 1-all1$agg.none
-mod1 <- lm( caap.pre ~    agec*(sin12+ cos12 + sin6 + cos6 + t + sin3 +cos3) + Ethnicity*(sin12+ cos12 + sin6 + cos6 + t + sin3 +cos3) +
-              agg.any*agec  
-            #+  agg.FluA*agec + agg.FluB*agec   
-            , data=all1)
-summary(mod1)
-
-all1.pre <- all1[!is.na(all1$caap.pre),] 
-all1.novirus <- all1[!is.na(all1$caap.pre),] 
-all1.novirus$agg.any <- 0 
-
-
-pred1 <- predict(mod1, newdata=all1.pre)
-pred1.novirus <- predict(mod1, newdata=all1.novirus)
-
-#Overall attrib Pct
-(sum(pred1) -sum(pred1.novirus))/sum(pred1)*100
-
-
-pred.ds <- cbind.data.frame('agec'=all1.pre$agec, 'Ethnicity'=all1.pre$Ethnicity, 'CAAP'=all1.pre$CAAP, pred1, pred1.novirus)
-
-#Agec Attrib Pct
-pred.ds.agg <- aggregate(pred.ds[,-c(1:2)], by=list('agec'=pred.ds$agec), FUN=sum)
-
-attrib.pct.grp <- 
-  (pred.ds.agg$pred1 - pred.ds.agg$pred1.novirus)/pred.ds.agg$pred1*100
-
-attrib.pct.grp
+attrib_pct <- preds.iter2 %>%
+  group_by( agec,ethnicity,variable) %>%
+  summarize(pred=sum(pred), pred_NoVirus=sum(pred_NoVirus) ) %>%
+  mutate(attrib_pct_Virus = 100*(pred-pred_NoVirus)/pred ) %>%
+  ungroup() %>%
+  group_by(agec,ethnicity) %>%
+  summarize( attrib_pct_med = median(attrib_pct_Virus), 
+             attrib_pct_lcl=quantile(attrib_pct_Virus, 0.025), 
+             attrib_pct_ucl=quantile(attrib_pct_Virus, 0.975))
  
-#Agec and ethnicity
-pred.ds.agg <- aggregate(pred.ds[,-c(1:2)], by=list('agec'=pred.ds$agec, 'Ethnicity'=pred.ds$Ethnicity), FUN=sum) 
-
-attrib.pct.grp <- 
-  (pred.ds.agg$pred1 - pred.ds.agg$pred1.novirus)/pred.ds.agg$pred1*100
-
-attrib.pct.grp
-
+attrib_pct
 ```
-
-## Fit separately to each group
-```{r}
-str.mods <- lapply(all.spl,function(x){
-  
-  mod1 <- lm( caap.pre ~   sin12+ cos12 + sin6 + cos6 + sin3 +cos3 + t + agg.RSV + agg.hMPV 
-                #+agg.FluA + agg.FluB 
-                , data=x)
-  ds.pre <- x[ is.na(x$caap.pre), ]
-  pred1 <- predict(mod1, newdata=ds.pre)
-  
-  x.norsv <- ds.pre
-  x.norsv$agg.RSV <- 0
-  pred1.norsv <- predict(mod1, newdata=x.norsv)
-  attrib.pct <- (sum(pred1) - sum(pred1.norsv))/sum(pred1)
-  out.list=list('attrib.pct'=attrib.pct,'pred1'=pred1,'pred1.norsv'=pred1.norsv, 'ds'=x)
-})
-attrib.pct <- sapply(str.mods, '[[', 'attrib.pct')*100
-attrib.pct
-
-par(mfcol=c(4,2), mar=c(2,2,0,0) )
-lapply(str.mods, function(x){
-  plot( x$ds$date, x$ds$CAAP, type='l', col='gray')
-  points( x$ds$date, x$pred1norsv, type='l', col='blue')
-  points( x$ds$date, x$pred1, type='l', col='red')
-
-  })
-```
-
-
-# Model comp
-Additive
-```{r}
-mod1 <- glm( caap.pre ~   sin12+ cos12 + sin6 + cos6 + sin3 +cos3 + RSV  + t + agec + Ethnicity, data=all1)
-
-mod2 <- glm( caap.pre ~   (sin12+ cos12 + sin6 + cos6 + sin3 +cos3 +t)*agec + RSV    + Ethnicity, data=all1)
-
-mod3 <- glm( caap.pre ~   (sin12+ cos12 + sin6 + cos6 + sin3 +cos3 +t)*Ethnicity + RSV    + agec, data=all1)
-
-mod4 <- glm( caap.pre ~   (sin12+ cos12 + sin6 + cos6 + sin3 +cos3 +t)*Ethnicity*agec + RSV    , data=all1)
-
-mod5 <- glm( caap.pre ~   (sin12+ cos12 + sin6 + cos6 + sin3 +cos3 +t)*Ethnicity*agec + RSV*agec    , data=all1)
-
-mod6 <- glm( caap.pre ~   (sin12+ cos12 + sin6 + cos6 + sin3 +cos3 +t)*Ethnicity*agec + RSV*Ethnicity    , data=all1)
-
-
-mod7 <- glm( caap.pre ~   (sin12+ cos12 + sin6 + cos6 + sin3 +cos3 +t)*Ethnicity*agec + agg.RSV*Ethnicity*agec    , data=all1)
-
-mod8 <- glm( caap.pre ~   sin12+ cos12 + sin6 + cos6 + sin3 +cos3 + agg.RSV  + t + agec + Ethnicity, data=all1)
-
-mod9 <- glm( caap.pre ~   (sin12+ cos12 + sin6 + cos6 + sin3 +cos3 +t)*agec + agg.RSV    + Ethnicity, data=all1)
-
-mod10 <- glm( caap.pre ~   (sin12+ cos12 + sin6 + cos6 + sin3 +cos3 +t)*Ethnicity + agg.RSV    + agec, data=all1)
-
-mod11 <- glm( caap.pre ~   (sin12+ cos12 + sin6 + cos6 + sin3 +cos3 +t)*Ethnicity*agec + agg.RSV    , data=all1)
-
-mod12 <- glm( caap.pre ~   (sin12+ cos12 + sin6 + cos6 + sin3 +cos3 +t)*Ethnicity*agec + agg.RSV*agec    , data=all1)
-
-mod13 <- glm( caap.pre ~   (sin12+ cos12 + sin6 + cos6 + sin3 +cos3 +t)*Ethnicity*agec + agg.RSV*Ethnicity    , data=all1)
-
-
-mod14 <- glm( caap.pre ~   (sin12+ cos12 + sin6 + cos6 + sin3 +cos3 +t)*Ethnicity*agec + agg.RSV*Ethnicity*agec    , data=all1)
-
-all.mods <- list(mod1,mod2, mod3, mod4, mod5, mod6, mod7, mod8, mod9, mod10, mod11, mod12, mod13, mod14)
-
-AIC <- sapply(all.mods, function(x)  AIC(x)  )
-AIC
-
-
-```
-
-
-Multiplicative
-```{r}
-mod1 <- glm( caap.pre ~   sin12+ cos12 + sin6 + cos6 + sin3 +cos3 + RSV  + t + agec + Ethnicity, data=all1, family='poisson')
-
-mod2 <- glm( caap.pre ~   (sin12+ cos12 + sin6 + cos6 + sin3 +cos3 +t)*agec + RSV    + Ethnicity, data=all1, family='poisson')
-
-mod3 <- glm( caap.pre ~   (sin12+ cos12 + sin6 + cos6 + sin3 +cos3 +t)*Ethnicity + RSV    + agec, data=all1, family='poisson')
-
-mod4 <- glm( caap.pre ~   (sin12+ cos12 + sin6 + cos6 + sin3 +cos3 +t)*Ethnicity*agec + RSV    , data=all1, family='poisson')
-
-mod5 <- glm( caap.pre ~   (sin12+ cos12 + sin6 + cos6 + sin3 +cos3 +t)*Ethnicity*agec + RSV*agec    , data=all1, family='poisson')
-
-mod6 <- glm( caap.pre ~   (sin12+ cos12 + sin6 + cos6 + sin3 +cos3 +t)*Ethnicity*agec + RSV*Ethnicity    , data=all1, family='poisson')
-
-
-mod7 <- glm( caap.pre ~   (sin12+ cos12 + sin6 + cos6 + sin3 +cos3 +t)*Ethnicity*agec + RSV*Ethnicity*agec    , data=all1, family='poisson')
-
-all.mods <- list(mod1,mod2, mod3, mod4, mod5, mod6, mod7)
-
-AIC <- sapply(all.mods, function(x)  AIC(x)  )
-AIC
-
-preds <-sapply(all.mods, function(x)  predict(x, type='response', newdata=all1)  )
-
-all1.norsv <- all1
-all1.norsv$RSV <- 0
-
-preds.norsv <-sapply(all.mods, function(x)  predict(x, type='response', newdata=all1.norsv)  )
-
-preds.sum <- apply(preds,2,sum)
-preds.norsv.sum <- apply(preds.norsv,2,sum)
-
-(preds.sum-preds.norsv.sum)/preds.sum*100
-
-```
-
-Sim check
---what if 100% is RSV
-Amount of noise influences the attrib pct estimates (which makes sense)
-```{r}
-
-sim.caap <- 0 + 400*all1$RSV +rnorm(nrow(all1),1,1)
-sim.caap[is.na(all1$caap.pre)] <- NA
-
-mod6 <- glm( sim.caap ~   (sin12+ cos12 + sin6 + cos6 + sin3 +cos3 +t)*Ethnicity*agec + RSV*Ethnicity    , data=all1)
-
-
-all1.norsv <- all1
-all1.norsv$RSV <- 0
-
-pred1 <- predict(mod6, newdata=all1)
-pred.norsv <- predict(mod6, newdata=all1.norsv)
-
-(sum(pred1) - sum(pred.norsv))/sum(pred1)
-
-```
-
-Analysis suggested by Ron: if we just look at average N of CAAP in April/Oct, and use that as a baseline, how much of the increase above that is due to RSV/hMPV, etc?
-
-Step 1: just look at percent of cases that are above April-October average
-```{r}
-
-simple.excess <- function(ds.select){
-  ds1 <- all.spl[[ds.select]]
-  summer.ave <- mean(ds1$caap.pre[ds1$month %in% c(4,5,6,7,8,9,10)], na.rm=T)
-  
-  obs.exp <- ds1$caap.pre - summer.ave #Winter excess
-  
-  excess.tot.prop.month <- obs.exp / ds1$caap.pre
-  
-  excess.tot.prop.tot <- sum(obs.exp, na.rm=T) / sum(ds1$caap.pre, na.rm=T)
-
-  excess.tot.prop.tot.winter <- sum(obs.exp[ds1$month %in% c(11,12,1,2,3)], na.rm=T) / sum(ds1$caap.pre[ds1$month %in% c(11,12,1,2,3)], na.rm=T)
-
-  #this is a check--should be ~0
-    excess.tot.prop.tot.summer <- sum(obs.exp[ds1$month %in% c(4,5,6,7,8,9,10)], na.rm=T) / sum(ds1$caap.pre[ds1$month %in% c(4,5,6,7,8,9,10)], na.rm=T)
-
-  out.list <- list('excess.tot.prop.month'=excess.tot.prop.month,'excess.tot.prop.tot'=excess.tot.prop.tot,'excess.tot.prop.tot.winter'=excess.tot.prop.tot.winter,'excess.tot.prop.tot.summer'=excess.tot.prop.tot.summer)
-  return(out.list)
-}
-
-excess1 <- lapply(names(all.spl),simple.excess)
-names(excess1) <- names(all.spl)
-
-winter.excess <- round(sapply(excess1,'[[', 'excess.tot.prop.tot.winter'),2)
-
-total.excess <- round(sapply(excess1,'[[', 'excess.tot.prop.tot'),2)
-
-
-#Check--should be 0 by definition
-summer.excess <- round(sapply(excess1,'[[', 'excess.tot.prop.tot.summer'),2)
-
-
-```
-
 
