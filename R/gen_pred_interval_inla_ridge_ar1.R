@@ -16,15 +16,15 @@ gen_pred_interval_inla_ridge_ar1 <- function(X1,Zb,inla_obj, Za,  covar.df, outc
   
   
   #AR1.obs is fit to the data pre-pandemic, then extrapolate after
-  ar1.obs <- sapply(r.samples, function(x){
-    x$latent[t.names,, drop=F]
-  })
-  #matplot(ar1.obs, type='l')
-  
-  ar1.obs <- as.data.frame(ar1.obs)
-  names(ar1.obs) <- paste0('sampleAR', 1:ncol(ar1.obs))
-  
-  ar1.obs$date <- sort(unique(covar.df$date))
+  # ar1.obs <- sapply(r.samples, function(x){
+  #   x$latent[t.names,, drop=F]
+  # })
+  # #matplot(ar1.obs, type='l')
+  # 
+  # ar1.obs <- as.data.frame(ar1.obs)
+  # names(ar1.obs) <- paste0('sampleAR', 1:ncol(ar1.obs))
+  # 
+  # ar1.obs$date <- sort(unique(covar.df$date))
   
   
   pred.names <- c(X.names,Za.names,Zb.names)
@@ -43,13 +43,13 @@ gen_pred_interval_inla_ridge_ar1 <- function(X1,Zb,inla_obj, Za,  covar.df, outc
   sample.ds1 <- as.data.frame(sample.ds1)
   sample.ds1$date <- covar.df$date
   
-  covar.ar <- merge(sample.ds1, ar1.obs, by='date', sort=F) #ensure everything correctly matched by date
+  #covar.ar <- merge(sample.ds1, ar1.obs, by='date', sort=F) #ensure everything correctly matched by date
   
   sample.ds1$date <- NULL 
   
-  covar.ar <- covar.ar[,grep('sampleAR', names(covar.ar)) ]
+  #covar.ar <- covar.ar[,grep('sampleAR', names(covar.ar)) ]
   
-  sample.ds2a <- sample.ds1  + ( covar.ar)
+  sample.ds2a <- sample.ds1  #+ ( covar.ar)
 
   sample.ds2 <- apply(sample.ds2a,2, function(x) x*offset1 )
 

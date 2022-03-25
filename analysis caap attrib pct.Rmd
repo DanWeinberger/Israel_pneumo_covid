@@ -235,15 +235,22 @@ preds.iter2 <- merge(preds.iter2, preds.iter.NoFlu, by=c('agec','ethnicity','dat
 preds.iter2 <- merge(preds.iter2, preds.iter.NoRSV, by=c('agec','ethnicity','date','variable'))
 
 
+#Constraints-- pred can't be <0, prednovirus can't be > pred
+preds.iter2$pred[preds.iter2$pred<0] <- 0
+
+preds.iter2$pred_NoVirus[preds.iter2$pred_NoVirus>preds.iter2$pred] <-
+  preds.iter2$pred[preds.iter2$pred_NoVirus>preds.iter2$pred]
+
+
 attrib_pct <- preds.iter2 %>%
-  group_by( agec,variable) %>%
+  group_by( variable) %>%
   summarize(pred=sum(pred), pred_NoVirus=sum(pred_NoVirus) ) %>%
   mutate(attrib_pct_Virus = 100*(pred-pred_NoVirus)/pred ) %>%
   ungroup() %>%
-  group_by(agec) %>%
-  summarize( attrib_pct_med = median(attrib_pct), 
-             attrib_pct_lcl=quantile(attrib_pct, 0.025), 
-             attrib_pct_ucl=quantile(attrib_pct, 0.975))
+ # group_by(agec) %>%
+  summarize( attrib_pct_med = median(attrib_pct_Virus), 
+             attrib_pct_lcl=quantile(attrib_pct_Virus, 0.025), 
+             attrib_pct_ucl=quantile(attrib_pct_Virus, 0.975))
  
 attrib_pct
 

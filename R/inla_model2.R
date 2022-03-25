@@ -89,7 +89,7 @@ inla_model2 <- function(ds,outcome.var,prec.prior1=1,plot.var='CAAP'){
   
    y <- ds[,outcome.var]/denom
 
-   formula <- y ~ -1  + X + f(idx.Za, model="z", Z=Za) +  f(idx.Zb, model="z", Z=Zb) + f(t, model='ar1',  constr=T)
+   formula <- y ~ -1  + X + f(idx.Za, model="z", Z=Za) +  f(idx.Zb, model="z", Z=Zb) 
    
    n <- nrow(ds)
    
