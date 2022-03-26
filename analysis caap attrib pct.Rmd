@@ -236,13 +236,22 @@ preds.iter2 <- merge(preds.iter2, preds.iter.NoRSV, by=c('agec','ethnicity','dat
 
 
 #Constraints-- pred can't be <0, prednovirus can't be > pred
-preds.iter2$pred[preds.iter2$pred<0] <- 0
-
-preds.iter2$pred_NoVirus[preds.iter2$pred_NoVirus>preds.iter2$pred] <-
-  preds.iter2$pred[preds.iter2$pred_NoVirus>preds.iter2$pred]
+# preds.iter2$pred[preds.iter2$pred<0] <- 0
+# preds.iter2$pred_NoVirus[preds.iter2$pred_NoVirus<0] <- 0
 
 
-attrib_pct <- preds.iter2 %>%
+# preds.iter2$pred_NoVirus[preds.iter2$pred_NoVirus>preds.iter2$pred] <-
+#   preds.iter2$pred[preds.iter2$pred_NoVirus>preds.iter2$pred]
+
+
+#let's create a flag for any iterations where there is a negative value predicted or where founterfact is > pred
+
+flags <- preds.iter2 %>%
+  group_by( variable) %>%
+  mutate(min_pred= min(pred) , flag_min_pred=(min_pred<0),
+         )
+
+attrib_pct <- flags[flags$flag_min_pred==0,] %>%
   group_by( variable) %>%
   summarize(pred=sum(pred), pred_NoVirus=sum(pred_NoVirus) ) %>%
   mutate(attrib_pct_Virus = 100*(pred-pred_NoVirus)/pred ) %>%
@@ -254,7 +263,7 @@ attrib_pct <- preds.iter2 %>%
  
 attrib_pct
 
-attrib_pct <- preds.iter2 %>%
+attrib_pct <- flags[flags$flag_min_pred==0,] %>%
   group_by( agec,ethnicity,variable) %>%
   summarize(pred=sum(pred), pred_NoVirus=sum(pred_NoVirus) ) %>%
   mutate(attrib_pct_Virus = 100*(pred-pred_NoVirus)/pred ) %>%
@@ -266,4 +275,6 @@ attrib_pct <- preds.iter2 %>%
  
 attrib_pct
 ```
+
+
 

@@ -61,7 +61,10 @@ gen_pred_interval_inla_ridge_ar1 <- function(X1,Zb,inla_obj, Za,  covar.df, outc
   
   
   mod.sd <- 1/sqrt(inla_obj$summary.hyperpar['Precision for the Gaussian observations','mean'])
-    pred <- rnorm(n=length(sample.ds1.m.rep[,3]), mean=sample.ds1.m.rep[,3] , sd=mod.sd)
+    #pred <- rnorm(n=length(sample.ds1.m.rep[,3]), mean=sample.ds1.m.rep[,3] , sd=mod.sd)
+  
+  ##DO NOT NEED TO RESAMPLE FROM NORMAL BC ONLY CARE ABOUT PARAMETER UNCERTAINTY HERE
+  pred <- sample.ds1.m.rep[,3]
   
   
   pred.df <- cbind.data.frame('id1'=sample.ds1.m.rep[,1],'rep'=rep(1:(nrep1*nrep2) , each=nrow(X1)), 'pred'=pred)
