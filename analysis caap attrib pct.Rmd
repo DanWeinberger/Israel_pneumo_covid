@@ -20,7 +20,10 @@ source('./R/format_carr.R')
 source('./R/format_caap.R')
 source('./R/format_virus.R')
 source('./R/format_ipd_func.R')
-source('./R/inla_model2.R')
+source('./R/inla_model3.R')
+source('./R/Plot_Obs_exp_counterfact.R')
+source('./R/attrib_pct_func.R')
+
 source('./R/gen_pred_interval_inla_ridge_ar1.R')
 
 ```
@@ -157,123 +160,87 @@ all1 <- all1[!is.na(all1$agec),]
 
 
 
-## INLA
+## INLA MODELS
+
+## CAAP, fit to pre-COVID data only
 
 ```{r}
-#all1.spl <- split(all1,paste(all1$agec, all1$ethnicity) )
-#res1 <- pblapply(all1.spl, inla_model2, outcome.var='caap.pre', plot.var='CAAP')
-
-res1 <- inla_model2(all1,  outcome.var='caap.pre', plot.var='CAAP')
-
+res1.caap.pre <- inla_model3(all1,  outcome.var='caap.pre', plot.var='CAAP')
 ```
 
 ```{r}
 
-preds_time_all <- res1$all$preds_time
-
-preds_time_NoVirus <- res1$NoVirus$preds_time
-
-preds_time_all$pred_lcl_post <- preds_time_all$pred_lcl
-preds_time_all$pred_lcl_post[preds_time_all$date<'2020-03-01'] <- NA
-
-preds_time_all$pred_ucl_post <- preds_time_all$pred_ucl
-preds_time_all$pred_ucl_post[preds_time_all$date<'2020-03-01'] <- NA
-
-preds_time_all$pred_mean_post <- preds_time_all$pred_mean
-preds_time_all$pred_mean_post[preds_time_all$date<'2020-03-01'] <- NA
-
-preds_time_all$pred_mean_pre <- preds_time_all$pred_mean
-preds_time_all$pred_mean_pre[preds_time_all$date>='2020-03-01'] <- NA
-
-ggplot(preds_time_all, aes(x=date, y=CAAP)) +
-         geom_line(color='gray')+
-    geom_line(data=preds_time_all,aes(x=date, y=pred_mean), color='black', lty=2)+
-  
-        geom_line(data=preds_time_NoVirus, aes(x=date, y=pred_mean), col='red')+
-  
-  facet_grid(agec~ethnicity) +
- # geom_line(aes(x=date, y=CAAP))+
-#  coord_cartesian(ylim = c(0, 75)) + 
-  geom_hline(yintercept=0) +
-  theme_classic()
-
+res1.caap.pre$obs_exp_plot
 
 ```
 
 ```{r, fig.width=4, fig.height=4}
-ggplot(preds_time_all, aes(x=date, y=CAAP)) +
-         geom_line()+
-          geom_line(data=preds_time_NoVirus) +
-         geom_ribbon( aes(x=date, ymin=pred_lcl_post, ymax=pred_ucl_post),alpha=0.1, col='white' )+
-  facet_grid(agec~ethnicity) +
-  geom_line(aes(x=date, y=CAAP))+
-  geom_line(aes(x=date, y=pred_mean_pre), color='black', lty=2)+
-  geom_line(aes(x=date, y=pred_mean_post), color='black', lty=2)+
-#  coord_cartesian(ylim = c(0, 75)) + 
-  geom_hline(yintercept=0) +
-  theme_classic()
+res1.caap.pre$predict_plot
 ```
-Attrib pct
+percent attributable to any virus
 ```{r}
-preds.iter <- res1$all$preds_covars.m
-names(preds.iter) <- c('agec','ethnicity','date','variable', 'pred')
+res1.caap.pre$attrib_pct$attrib_pct_any
 
-preds.iter.NoFlu <- res1$NoFlu$preds_covars.m
-names(preds.iter.NoFlu) <- c('agec','ethnicity','date','variable', 'pred_NoFlu')
+res1.caap.pre$attrib_pct$attrib_pct_any_age
 
-preds.iter.NoRSV <- res1$NoRSV$preds_covars.m
-names(preds.iter.NoRSV) <- c('agec','ethnicity','date','variable', 'pred_NoRSV')
+```
 
-preds.iter.NoVirus <- res1$NoVirus$preds_covars.m
-names(preds.iter.NoVirus) <- c('agec','ethnicity','date','variable', 'pred_NoVirus')
+RSV attrib pct
+```{r}
+res1.caap.pre$attrib_pct$attrib_pct_RSV
 
+res1.caap.pre$attrib_pct$attrib_pct_RSV_age
+```
 
-preds.iter2 <- merge(preds.iter, preds.iter.NoVirus, by=c('agec','ethnicity','date','variable'))
+HMPV attrib pct
+```{r}
+res1.caap.pre$attrib_pct$attrib_pct_HMPV
 
-preds.iter2 <- merge(preds.iter2, preds.iter.NoFlu, by=c('agec','ethnicity','date','variable'))
+res1.caap.pre$attrib_pct$attrib_pct_HMPV_age
+```
 
-preds.iter2 <- merge(preds.iter2, preds.iter.NoRSV, by=c('agec','ethnicity','date','variable'))
+## CAAP, fit to ALL data
 
+```{r}
 
-#Constraints-- pred can't be <0, prednovirus can't be > pred
-# preds.iter2$pred[preds.iter2$pred<0] <- 0
-# preds.iter2$pred_NoVirus[preds.iter2$pred_NoVirus<0] <- 0
+res1.caap.all <- inla_model3(all1,  outcome.var='CAAP', plot.var='CAAP')
+```
 
+```{r}
+res1.caap.all$obs_exp_plot
+```
 
-# preds.iter2$pred_NoVirus[preds.iter2$pred_NoVirus>preds.iter2$pred] <-
-#   preds.iter2$pred[preds.iter2$pred_NoVirus>preds.iter2$pred]
+```{r, fig.width=4, fig.height=4}
+res1.caap.all$predict_plot
+```
 
+percent attributable to any virus
+```{r}
+res1.caap.all$attrib_pct$attrib_pct_any
 
-#let's create a flag for any iterations where there is a negative value predicted or where founterfact is > pred
+res1.caap.all$attrib_pct$attrib_pct_any_age
 
-flags <- preds.iter2 %>%
-  group_by( variable) %>%
-  mutate(min_pred= min(pred) , flag_min_pred=(min_pred<0),
-         )
+```
 
-attrib_pct <- flags[flags$flag_min_pred==0,] %>%
-  group_by( variable) %>%
-  summarize(pred=sum(pred), pred_NoVirus=sum(pred_NoVirus) ) %>%
-  mutate(attrib_pct_Virus = 100*(pred-pred_NoVirus)/pred ) %>%
-  ungroup() %>%
- # group_by(agec) %>%
-  summarize( attrib_pct_med = median(attrib_pct_Virus), 
-             attrib_pct_lcl=quantile(attrib_pct_Virus, 0.025), 
-             attrib_pct_ucl=quantile(attrib_pct_Virus, 0.975))
- 
-attrib_pct
+RSV attrib pct
+```{r}
+res1.caap.all$attrib_pct$attrib_pct_RSV
 
-attrib_pct <- flags[flags$flag_min_pred==0,] %>%
-  group_by( agec,ethnicity,variable) %>%
-  summarize(pred=sum(pred), pred_NoVirus=sum(pred_NoVirus) ) %>%
-  mutate(attrib_pct_Virus = 100*(pred-pred_NoVirus)/pred ) %>%
-  ungroup() %>%
-  group_by(agec,ethnicity) %>%
-  summarize( attrib_pct_med = median(attrib_pct_Virus), 
-             attrib_pct_lcl=quantile(attrib_pct_Virus, 0.025), 
-             attrib_pct_ucl=quantile(attrib_pct_Virus, 0.975))
- 
-attrib_pct
+res1.caap.all$attrib_pct$attrib_pct_RSV_age
+```
+
+HMPV attrib pct
+```{r}
+res1.caap.all$attrib_pct$attrib_pct_HMPV
+
+res1.caap.all$attrib_pct$attrib_pct_HMPV_age
+```
+
+Flu attrib pct
+```{r}
+res1.caap.all$attrib_pct$attrib_pct_HMPV
+
+res1.caap.all$attrib_pct$attrib_pct_HMPV_age
 ```
 
 

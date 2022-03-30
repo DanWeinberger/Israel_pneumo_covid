@@ -1,4 +1,4 @@
-inla_model2 <- function(ds,outcome.var,prec.prior1=1,plot.var='CAAP'){
+inla_model3 <- function(ds,outcome.var,prec.prior1=1,plot.var='CAAP'){
   #http://julianfaraway.github.io/brinla/examples/ridge.html
   #ds=ag3
   
@@ -35,14 +35,23 @@ inla_model2 <- function(ds,outcome.var,prec.prior1=1,plot.var='CAAP'){
   
  eqn.Za <-as.formula("~ -1+ agec_eth:t.scale + agec_eth:sin12 + agec_eth:cos12")
  
- eqn.Zb <-as.formula("~ -1 + agec_eth:RSV + agec_eth:hMPV +agec_eth:influenza.a +agec_eth:influenza.b + agec_eth:respiratory.adenovirus +
-                       agec_eth:parainfluenza")
+ eqn.Zb <-as.formula("~ -1 + agec_eth:RSV ")
+ eqn.Zc <-as.formula("~ -1 + agec_eth:hMPV ")
+ eqn.Zd <-as.formula("~ -1 + agec_eth:influenza.a +agec_eth:influenza.b ")
+ eqn.Ze <-as.formula("~ -1 + agec_eth:respiratory.adenovirus ")
+ eqn.Zf <-as.formula("~ -1 + agec_eth:parainfluenza ")
+
+ eqn.Z.vir <-as.formula("~ -1 +agec_eth:RSV + agec_eth:hMPV + agec_eth:influenza.a +agec_eth:influenza.b + agec_eth:respiratory.adenovirus+ agec_eth:parainfluenza ")
  
- #eqn.Zb <-as.formula("~ -1 + agec_eth:RSV + agec_eth:hMPV+agec_eth:influenza.a +agec_eth:influenza.b ")
-   
-  Za <- model.matrix(eqn.Za, data=ds)
   
+  Za <- model.matrix(eqn.Za, data=ds)
   Zb <- model.matrix( eqn.Zb, data=ds)
+  Zc <- model.matrix( eqn.Zc, data=ds)
+  Zd <- model.matrix( eqn.Zd, data=ds)
+  Ze <- model.matrix( eqn.Ze, data=ds)
+  Zf <- model.matrix( eqn.Zf, data=ds)
+  
+  Z.virus <- cbind(Zb, Zc, Zd, Ze,Zf)
   
   X <- model.matrix(eqn.x1, data=ds)
   
@@ -70,7 +79,6 @@ inla_model2 <- function(ds,outcome.var,prec.prior1=1,plot.var='CAAP'){
   ds.novirus$parainfluenza <- 0
   ds.novirus$hMPV <- 0
   
-  
   X.noflu <- model.matrix(eqn.x1, data=ds.noflu)
   X.norsv <- model.matrix(eqn.x1, data=ds.norsv)
   X.nohmpv <- model.matrix(eqn.x1, data=ds.nohmpv)
@@ -78,13 +86,22 @@ inla_model2 <- function(ds,outcome.var,prec.prior1=1,plot.var='CAAP'){
   X.noparaflu <- model.matrix(eqn.x1, data=ds.noparaflu)
   X.novirus <- model.matrix(eqn.x1, data=ds.novirus)
   
-  Zb.noflu <- model.matrix(eqn.Zb, data=ds.noflu)
   Zb.norsv <- model.matrix(eqn.Zb, data=ds.norsv)
-  Zb.nohmpv <- model.matrix(eqn.Zb, data=ds.nohmpv)
-  Zb.noadeno <- model.matrix(eqn.Zb, data=ds.noadeno)
-  Zb.noparaflu <- model.matrix(eqn.Zb, data=ds.noparaflu)
-  Zb.novirus <- model.matrix(eqn.Zb, data=ds.novirus)
+  Zc.nohmpv <- model.matrix(eqn.Zc, data=ds.nohmpv)
+  Zd.noflu <- model.matrix(eqn.Zd, data=ds.noflu)
+  
+  Ze.noadeno <- model.matrix(eqn.Ze, data=ds.noadeno)
+  Zf.noparaflu <- model.matrix(eqn.Zf, data=ds.noparaflu)
+ 
+  Z.novirus <- model.matrix(eqn.Z.vir, data=ds.novirus)
 
+  Z.noRSV <- cbind(Zb.norsv, Zc, Zd, Ze,Zf)
+  Z.noHMPV <- cbind(Zb, Zc.nohmpv, Zd, Ze,Zf)
+  Z.noflu <- cbind(Zb, Zc, Zd.noflu, Ze,Zf)
+  Z.noadeno <- cbind(Zb, Zc, Zd, Ze.noadeno,Zf)
+  Z.noHMPV <- cbind(Zb, Zc.nohmpv, Zd, Ze,Zf)
+  Z.noparaflu <- cbind(Zb, Zc, Zd, Ze,Zf.noparaflu)
+  
 
   denom = ds$pop/1000
 
@@ -94,12 +111,25 @@ inla_model2 <- function(ds,outcome.var,prec.prior1=1,plot.var='CAAP'){
 
   
    y <- ds[,outcome.var]/denom
+   
+   mean.y <- mean(y, na.rm=T)
+   sd.y <- sd(y, na.rm=T) 
+   y.scale <- (y - mean.y)/sd.y
 
-   formula <- y ~ -1  + X + f(idx.Za, model="z", Z=Za) +  f(idx.Zb, model="z", Z=Zb) 
+   formula <- y.scale ~ -1  + X + f(idx.Za, model="z", Z=Za) +  
+     f(idx.Zb, model="z", Z=Zb) +
+     f(idx.Zc, model="z", Z=Zc) +
+     f(idx.Zd, model="z", Z=Zd) +
+     f(idx.Ze, model="z", Z=Ze) +
+     f(idx.Zf, model="z", Z=Zf)
    
    n <- nrow(ds)
    
-  mod.inla2 <- inla(formula, data = list(y=y, idx.Za = 1:n,idx.Zb = 1:n,
+  mod.inla2 <- inla(formula, data = list(y.scale=y.scale, idx.Za = 1:n,idx.Zb = 1:n,
+                                         idx.Zc = 1:n,
+                                         idx.Zd = 1:n,
+                                         idx.Ze = 1:n,
+                                         idx.Zf = 1:n,
                                          t=ds$t,
                                          X=X), 
                     family='gaussian', 
@@ -115,10 +145,12 @@ inla_model2 <- function(ds,outcome.var,prec.prior1=1,plot.var='CAAP'){
   t.increment <- all.ts[length(all.ts)] - all.ts[length(all.ts)-1] 
   
   X.test <- list('all'=X, 'NoFlu'=X.noflu, 'NoRSV'=X.norsv, 'noHMPV'=X.nohmpv, 'NoVirus'=X.novirus)
-  Zb.test <- list('all'=Zb, 'NoFlu'=Zb.noflu, 'NoRSV'=Zb.norsv, 'noHMPV'=Zb.nohmpv, 'NoVirus'=Zb.novirus)
-  res1 <- mapply(FUN=gen_pred_interval_inla_ridge_ar1, X1=X.test,Zb=Zb.test,  MoreArgs=list(inla_obj=mod.inla2, covar.df=ds,Za=Za, outcome_name=plot.var,offset1= denom), SIMPLIFY=F)
+  Zb.test <- list('all'=Z.virus, 'NoFlu'=Z.noflu, 'NoRSV'=Z.noRSV, 'noHMPV'=Z.noHMPV, 'NoVirus'=Z.novirus)
+  res1 <- pbmapply(FUN=gen_pred_interval_inla_ridge_ar1, X1=X.test,Zb=Zb.test,  MoreArgs=list(inla_obj=mod.inla2, covar.df=ds,Za=Za, outcome_name=plot.var,offset1= denom, sd.y=sd.y, mean.y=mean.y), SIMPLIFY=F)
   
+  p1 <- Plot_Obs_exp_counterfact(ds=res1)
   
-  preds.inla2= c(res1, 'waic'=waic, 'dic'=dic)
+  attrib_pct = attrib_pct_func(ds=res1)
+  preds.inla2= list('res1'=res1, 'waic'=waic, 'dic'=dic, 'obs_exp_plot'=p1$obs_exp, 'predict_plot'=p1$predict.plot, 'attrib_pct'=attrib_pct)
   return(preds.inla2)
 }

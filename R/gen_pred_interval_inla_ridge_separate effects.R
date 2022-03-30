@@ -1,4 +1,4 @@
-gen_pred_interval_inla_ridge_ar1 <- function(X1,Zb,inla_obj, Za,  covar.df, outcome_name, source,offset1=NULL, sd.y, mean.y){
+gen_pred_interval_inla_ridge_ar1 <- function(X1,Zb,inla_obj, Za,  covar.df, outcome_name, source,offset1=NULL){
   
   nrep1=1000
   nrep2=1
@@ -12,13 +12,7 @@ gen_pred_interval_inla_ridge_ar1 <- function(X1,Zb,inla_obj, Za,  covar.df, outc
   X.names <- paste0(dimnames(X1)[[2]], ':1')
   Za.names <- all.names[grep('idx.Za', all.names) ][-c(1:nrow(Za))] 
   Zb.names <- all.names[grep('idx.Zb', all.names) ][-c(1:nrow(Zb))] 
-  Zc.names <- all.names[grep('idx.Zc', all.names) ][-c(1:nrow(Zb))] 
-  Zd.names <- all.names[grep('idx.Zd', all.names) ][-c(1:nrow(Zb))] 
-  Ze.names <- all.names[grep('idx.Ze', all.names) ][-c(1:nrow(Zb))] 
-  Zf.names <- all.names[grep('idx.Zf', all.names) ][-c(1:nrow(Zb))] 
-  
-  
-    t.names <- all.names[which(substring(all.names,1,2)=='t:')] #ar1 component from training data
+  t.names <- all.names[which(substring(all.names,1,2)=='t:')] #ar1 component from training data
   
   
   #AR1.obs is fit to the data pre-pandemic, then extrapolate after
@@ -33,9 +27,7 @@ gen_pred_interval_inla_ridge_ar1 <- function(X1,Zb,inla_obj, Za,  covar.df, outc
   # ar1.obs$date <- sort(unique(covar.df$date))
   
   
-  pred.names <- c(X.names,Za.names,Zb.names,Zc.names,
-                  Zd.names, Ze.names, Zf.names)
-  
+  pred.names <- c(X.names,Za.names,Zb.names)
   # pred.names.check <- gsub(':1','', pred.names)
   #  sum(pred.names.check==colnames(mod.mat)) #order is correct
   
@@ -59,8 +51,7 @@ gen_pred_interval_inla_ridge_ar1 <- function(X1,Zb,inla_obj, Za,  covar.df, outc
   
   sample.ds2a <- sample.ds1  #+ ( covar.ar)
 
-  sample.ds2b <- sample.ds2a*sd.y + mean.y
-  sample.ds2 <- apply(sample.ds2b,2, function(x) x*offset1 )
+  sample.ds2 <- apply(sample.ds2a,2, function(x) x*offset1 )
 
   mod.family <- inla_obj$.args$family
   
