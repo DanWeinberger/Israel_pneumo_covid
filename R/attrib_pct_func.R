@@ -14,6 +14,12 @@ attrib_pct_func <- function(ds){
   preds.iter.NoHMPV <- ds$noHMPV$preds_covars.m
   names(preds.iter.NoHMPV) <- c('agec','ethnicity','date','variable', 'pred_NoHMPV')
   
+  preds.iter.NoParaflu <- ds$noParaflu$preds_covars.m
+  names(preds.iter.NoParaflu) <- c('agec','ethnicity','date','variable', 'pred_NoParaflu')
+  
+  preds.iter.NoAdeno <- ds$noAdeno$preds_covars.m
+  names(preds.iter.NoAdeno) <- c('agec','ethnicity','date','variable', 'pred_NoAdeno')
+  
   # preds.iter.NoFlu <- ds$NoFlu$preds_covars.m
   # names(preds.iter.NoFlu) <- c('agec','ethnicity','date','variable', 'pred_NoFlu')
   # 
