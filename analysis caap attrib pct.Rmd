@@ -122,6 +122,9 @@ all1 <- all1[!is.na(all1$CAAP) & all1$date>='2016-01-01',]
 
 all1$prev[is.na(all1$prev)] <-0
 
+all1 <- merge(all1, ipd1$ds[,c('agec','ethnicity','date','bacteremic.pneumonia','other.IPD')], by=c('ethnicity', 'agec', 'date'), all.x=T)
+
+
 all1 <- merge(all1, vir2.c, by=c('ethnicity', 'date'), all=T)
 
 
@@ -205,10 +208,24 @@ res1.caap.all$predict_plot
 res1.noncaap.pre <- inla_model3(all1,  outcome.var='non.caap.pre', plot.var='nonCAAP')
 
 res1.noncaap.all <- inla_model3(all1,  outcome.var='nonCAAP', plot.var='nonCAAP')
+
+res1.ipd.pneu.all <- inla_model3(all1,  outcome.var='bacteremic.pneumonia', plot.var='bacteremic.pneumonia')
+res1.ipd.other.all <- inla_model3(all1,  outcome.var='other.IPD', plot.var='other.IPD')
+
 ```
 ```{r}
 
 res1.noncaap.pre$obs_exp_plot
+
+
+res1.noncaap.all$obs_exp_plot
+
+```
+Observed vs expected for IPD, fit to entire dataset
+```{r}
+
+res1.ipd.pneu.all$obs_exp_plot
+res1.ipd.other.all$obs_exp_plot
 
 ```
 
@@ -223,10 +240,15 @@ ap3 <- attrib_pct_fmt_func(res1.noncaap.all,'NonCAAP_all')
 
 ap4 <- attrib_pct_fmt_func(res1.noncaap.pre,'NonCAAP_pre')
 
+ap5 <- attrib_pct_fmt_func(res1.ipd.pneu.all,'IPD_pneumonia_all')
 
-cbind(ap1, ap3[,2])
+ap6 <- attrib_pct_fmt_func(res1.ipd.other.all,'IPD_other_all')
+
 
 htmlTable(cbind(ap2, ap4[,2], ap1[,2], ap3[,2]))
+
+
+htmlTable(cbind(ap1, ap3[,2], ap5[,2], ap6[,2]))
 
 ```
 

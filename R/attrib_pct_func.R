@@ -114,8 +114,34 @@ attrib_pct_func <- function(ds){
                attrib_pct_lcl=quantile(attrib_pct_Flu, 0.025), 
                attrib_pct_ucl=quantile(attrib_pct_Flu, 0.975))
   
+  #Adeno
+  attrib_pct_Paraflu <- preds.iter2 %>%
+    group_by( variable) %>%
+    summarize(pred=sum(pred), pred_NoParaflu=sum(pred_NoParaflu) ) %>%
+    mutate(attrib_pct_Paraflu = 100*(pred-pred_NoParaflu)/pred ) %>%
+    ungroup() %>%
+    # group_by(agec) %>%
+    summarize( attrib_pct_med = median(attrib_pct_Paraflu), 
+               attrib_pct_lcl=quantile(attrib_pct_Paraflu, 0.025), 
+               attrib_pct_ucl=quantile(attrib_pct_Paraflu, 0.975))
+  
+  attrib_pct_Paraflu_age <- preds.iter2 %>%
+    group_by( agec,ethnicity,variable) %>%
+    summarize(pred=sum(pred), pred_NoParaflu=sum(pred_NoParaflu) ) %>%
+    mutate(attrib_pct_Paraflu = 100*(pred-pred_NoParaflu)/pred ) %>%
+    ungroup() %>%
+    group_by(agec,ethnicity) %>%
+    summarize( attrib_pct_med = median(attrib_pct_Paraflu), 
+               attrib_pct_lcl=quantile(attrib_pct_Paraflu, 0.025), 
+               attrib_pct_ucl=quantile(attrib_pct_Paraflu, 0.975))
+  
+  #Paraflu
+ 
+  
   out.list=list('attrib_pct_HMPV_age'=attrib_pct_HMPV_age, 'attrib_pct_HMPV'=attrib_pct_HMPV,
                 'attrib_pct_RSV'=attrib_pct_RSV,'attrib_pct_RSV_age'=attrib_pct_RSV_age, 
                 'attrib_pct_any_age'=attrib_pct_any_age,'attrib_pct_any'=attrib_pct_any,
-                'attrib_pct_Flu_age'=attrib_pct_Flu_age,'attrib_pct_Flu'=attrib_pct_Flu)
+                'attrib_pct_Flu_age'=attrib_pct_Flu_age,'attrib_pct_Flu'=attrib_pct_Flu,
+                 'attrib_pct_Paraflu_age'=attrib_pct_Paraflu_age,'attrib_pct_Paraflu'=attrib_pct_Paraflu,
+                'attrib_pct_Adeno_age'=attrib_pct_Adeno_age,'attrib_pct_Adeno'=attrib_pct_Adeno)
   }

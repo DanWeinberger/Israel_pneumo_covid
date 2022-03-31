@@ -1,27 +1,55 @@
 format_ipd_func <- function(){
-  ipd1 <- read_excel('./DONOTSYNC/Bart Adriaan_van der_IPD 2016-2021.xlsx')
+  ipd1a <- read_excel('./DONOTSYNC/Bart Adriaan_van der_IPD 2016-2021.xlsx', sheet='<1y')
+  ipd1b <- read_excel('./DONOTSYNC/Bart Adriaan_van der_IPD 2016-2021.xlsx', sheet='1y')
+  ipd1c <- read_excel('./DONOTSYNC/Bart Adriaan_van der_IPD 2016-2021.xlsx', sheet='2-4y')
+
   
-  ipd1 <- ipd1[, c('Date',"other.IPD.under1y.Jewish","other.IPD.under1y.nonJewish","bacteremic.pneumonia.under1y.Jewish","bacteremic.pneumonia.under1y.nonJewish","Jewish.pop.under1y" ,"nonJewish.pop.under1y")]
+  c2 <- bind_rows(ipd1a,ipd1b,ipd1c)
   
-  ipd1.m <- melt(ipd1, id.vars = 'Date')
+  c2.m <- melt(c2, id.vars=c('Date'))
   
-  ipd1.m$ethnicity= 'J'
-  ipd1.m$ethnicity[grep('nonJewish',ipd1.m$variable)] <- 'N'
   
-  ipd1.m$outcome= 'IPD_pneumonia'
-  ipd1.m$outcome[grep('other.IPD',ipd1.m$variable)] <- 'IPD_other'
-  ipd1.m$outcome[grep('pop',ipd1.m$variable)] <- 'pop'
+  c2.m$ethnicity <- NA
+  c2.m$ethnicity[grep('.Jewish',c2.m$variable, fixed=T)] <- "J" 
+  c2.m$ethnicity[grep('nonJewish',c2.m$variable)] <- "B" #Not actually bedouins, but we will use it
+  c2.m$ethnicity[grep('total',c2.m$variable)] <- "T" 
   
-  ipd1.c <- reshape2::dcast(ipd1.m,Date+ethnicity~outcome)
-  ipd1.c$ethnicity <- as.factor(ipd1.c$ethnicity)
+  c2.m$agec <- NA
+  c2.m$agec[grep('under1y',c2.m$variable)] <- 1
+  c2.m$agec[grep('.1y',c2.m$variable, fixed=T)] <- 2
+  c2.m$agec[grep('2-4y',c2.m$variable)] <- 3
   
-  p.ipd_pneu <- ggplot(ipd1.c, aes(x=Date, y=IPD_pneumonia, group=ethnicity, colour=ethnicity)) +
+  
+  c2.m$vartype <- NA
+  c2.m$vartype[grep('total.IPD',c2.m$variable)] <- "total.IPD"
+  c2.m$vartype[grep('pop',c2.m$variable)] <- "pop"
+  c2.m$vartype[grep('other.IPD',c2.m$variable, fixed=T)] <- "other.IPD"
+  c2.m$vartype[grep('bacteremic.pneumonia',c2.m$variable, fixed=T)] <- "bacteremic.pneumonia"
+  
+  c2.m <- c2.m[-grep('Inc',c2.m$variable),] #get rid of incidence
+  
+  c2.m <- c2.m[c2.m$ethnicity!='T',]
+  
+  c2.m <- c2.m[!is.na(c2.m$Date),]
+  
+  c2.m <- c2.m[!is.na(c2.m$value),]
+  
+  c3 <- reshape2::dcast(c2.m, agec + ethnicity + Date  ~ vartype)
+  
+  names(c3)[1:3] <- c('agec','ethnicity','date')
+  
+  
+  p.ipd_pneu <- ggplot(c3, aes(x=date, y=bacteremic.pneumonia, group=ethnicity, colour=ethnicity)) +
     geom_line() +
-    theme_classic()
+    theme_classic()+
+    facet_wrap(~agec)
   
-  p.ipd_other <- ggplot(ipd1.c, aes(x=Date, y=IPD_other, group=ethnicity, colour=ethnicity)) +
+  p.ipd_other <- ggplot(c3, aes(x=date, y=other.IPD, group=ethnicity, colour=ethnicity)) +
     geom_line() +
-    theme_classic()
-  out.list=list('ds'=ipd1.c,'p.ipd_pneu'=p.ipd_pneu,'p.ipd_other'=p.ipd_other)
+    theme_classic()+
+    facet_wrap(~agec)
+  
+  
+  out.list=list('ds'=c3,'p.ipd_pneu'=p.ipd_pneu,'p.ipd_other'=p.ipd_other)
   return(out.list)
 }
