@@ -33,6 +33,10 @@ attrib_pct_func <- function(ds){
   
   preds.iter2 <- merge(preds.iter2, preds.iter.NoHMPV, by=c('agec','ethnicity','date','variable'))
 
+  preds.iter2 <- merge(preds.iter2, preds.iter.NoParaflu, by=c('agec','ethnicity','date','variable'))
+  
+  preds.iter2 <- merge(preds.iter2, preds.iter.NoAdeno, by=c('agec','ethnicity','date','variable'))
+  
   #preds.iter2 <- merge(preds.iter2, preds.iter.NoFlu, by=c('agec','ethnicity','date','variable'))
   
   #Attributable to any virus
