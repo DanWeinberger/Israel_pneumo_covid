@@ -148,7 +148,7 @@ inla_model3 <- function(ds,outcome.var,prec.prior1=1,plot.var='CAAP'){
   Zb.test <- list('all'=Z.virus, 'NoFlu'=Z.noflu, 'NoRSV'=Z.noRSV, 'noHMPV'=Z.noHMPV, 'NoVirus'=Z.novirus)
   res1 <- pbmapply(FUN=gen_pred_interval_inla_ridge_ar1, X1=X.test,Zb=Zb.test,  MoreArgs=list(inla_obj=mod.inla2, covar.df=ds,Za=Za, outcome_name=plot.var,offset1= denom, sd.y=sd.y, mean.y=mean.y), SIMPLIFY=F)
   
-  p1 <- Plot_Obs_exp_counterfact(ds=res1)
+  p1 <- Plot_Obs_exp_counterfact(ds=res1,plot.var=plot.var)
   
   attrib_pct = attrib_pct_func(ds=res1)
   preds.inla2= list('res1'=res1, 'waic'=waic, 'dic'=dic, 'obs_exp_plot'=p1$obs_exp, 'predict_plot'=p1$predict.plot, 'attrib_pct'=attrib_pct)

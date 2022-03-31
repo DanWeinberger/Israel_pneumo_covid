@@ -14,6 +14,7 @@ library(lubridate)
 library(dplyr)
 library(INLA)
 library(tidyr)
+library(htmlTable)
 library(pbapply)
 
 source('./R/format_carr.R')
@@ -23,6 +24,7 @@ source('./R/format_ipd_func.R')
 source('./R/inla_model3.R')
 source('./R/Plot_Obs_exp_counterfact.R')
 source('./R/attrib_pct_func.R')
+source('./R/attrib_pct_fmt_func.R')
 
 source('./R/gen_pred_interval_inla_ridge_ar1.R')
 
@@ -164,8 +166,12 @@ all1 <- all1[!is.na(all1$agec),]
 
 ## CAAP, fit to pre-COVID data only
 
+Fit model to pre data only or to any 
+
 ```{r}
 res1.caap.pre <- inla_model3(all1,  outcome.var='caap.pre', plot.var='CAAP')
+
+res1.caap.all <- inla_model3(all1,  outcome.var='CAAP', plot.var='CAAP')
 ```
 
 ```{r}
@@ -177,34 +183,10 @@ res1.caap.pre$obs_exp_plot
 ```{r, fig.width=4, fig.height=4}
 res1.caap.pre$predict_plot
 ```
-percent attributable to any virus
-```{r}
-res1.caap.pre$attrib_pct$attrib_pct_any
 
-res1.caap.pre$attrib_pct$attrib_pct_any_age
 
-```
-
-RSV attrib pct
-```{r}
-res1.caap.pre$attrib_pct$attrib_pct_RSV
-
-res1.caap.pre$attrib_pct$attrib_pct_RSV_age
-```
-
-HMPV attrib pct
-```{r}
-res1.caap.pre$attrib_pct$attrib_pct_HMPV
-
-res1.caap.pre$attrib_pct$attrib_pct_HMPV_age
-```
 
 ## CAAP, fit to ALL data
-
-```{r}
-
-res1.caap.all <- inla_model3(all1,  outcome.var='CAAP', plot.var='CAAP')
-```
 
 ```{r}
 res1.caap.all$obs_exp_plot
@@ -214,34 +196,38 @@ res1.caap.all$obs_exp_plot
 res1.caap.all$predict_plot
 ```
 
-percent attributable to any virus
-```{r}
-res1.caap.all$attrib_pct$attrib_pct_any
 
-res1.caap.all$attrib_pct$attrib_pct_any_age
+
+## non-CAAP, fit to pre data
+
+```{r}
+
+res1.noncaap.pre <- inla_model3(all1,  outcome.var='non.caap.pre', plot.var='nonCAAP')
+
+res1.noncaap.all <- inla_model3(all1,  outcome.var='nonCAAP', plot.var='nonCAAP')
+```
+```{r}
+
+res1.noncaap.pre$obs_exp_plot
 
 ```
 
-RSV attrib pct
+## Compare attributable percents for different outcomes, etc
 ```{r}
-res1.caap.all$attrib_pct$attrib_pct_RSV
+ap1 <- attrib_pct_fmt_func(res1.caap.all,'CAAP_all')
 
-res1.caap.all$attrib_pct$attrib_pct_RSV_age
+ap2 <- attrib_pct_fmt_func(res1.caap.pre,'CAAP_pre')
+
+
+ap3 <- attrib_pct_fmt_func(res1.noncaap.all,'NonCAAP_all')
+
+ap4 <- attrib_pct_fmt_func(res1.noncaap.pre,'NonCAAP_pre')
+
+
+cbind(ap1, ap3[,2])
+
+htmlTable(cbind(ap2, ap4[,2], ap1[,2], ap3[,2]))
+
 ```
-
-HMPV attrib pct
-```{r}
-res1.caap.all$attrib_pct$attrib_pct_HMPV
-
-res1.caap.all$attrib_pct$attrib_pct_HMPV_age
-```
-
-Flu attrib pct
-```{r}
-res1.caap.all$attrib_pct$attrib_pct_HMPV
-
-res1.caap.all$attrib_pct$attrib_pct_HMPV_age
-```
-
 
 
