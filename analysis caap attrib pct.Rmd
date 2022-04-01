@@ -25,6 +25,7 @@ source('./R/inla_model3.R')
 source('./R/Plot_Obs_exp_counterfact.R')
 source('./R/attrib_pct_func.R')
 source('./R/attrib_pct_fmt_func.R')
+source('./R/attrib_pct_fmt_func_age.R')
 
 source('./R/gen_pred_interval_inla_ridge_ar1.R')
 
@@ -270,18 +271,36 @@ age_ap6 <- attrib_pct_fmt_func_age(res1.ipd.other.all,'IPD_other_all')
 
 #htmlTable(cbind(ap2, ap4[,2], ap1[,2], ap3[,2]))
 
-combined.df <- cbind(age_ap1, age_ap3[,4], age_ap5[,4], age_ap6[,4])
+combined.df <- cbind(age_ap1, age_ap3[,3], age_ap5[,3], age_ap6[,3])
 
-htmlTable(combined.df[combined.df$ethnicity=='J',], rgroup=c('Any Virus','RSV','hMPV','Flu','Adeno', 'paraflu'), n.rgroup=rep(3,6) )
+htmlTable(combined.df, rgroup=c('Any Virus','RSV','hMPV','Flu','Adeno', 'paraflu'), n.rgroup=rep(3,6) )
 
 combined.df$virus <- factor(combined.df$virus, levels=c('any','rsv','hmpv','flu','adeno','paraflu'))
 
 
-combined.df2 <- combined.df[order(combined.df$agec, combined.df$virus, combined.df$ethnicity),]
+combined.df2 <- combined.df[order(combined.df$agec, combined.df$virus),]
 
-htmlTable(combined.df2[combined.df2$ethnicity=='J',], rgroup=c('<12m','12-23m','2-4y'), n.rgroup=rep(6,3) )
+htmlTable(combined.df2, rgroup=c('<12m','12-23m','2-4y'), n.rgroup=rep(6,3) )
 
 ```
 
+
+Rhino--only available in recent times
+```{r}
+
+all1$out.scale <- scale(all1$CAAP/all1$pop*1000)
+modr1 <- lm(CAAP ~ agec*ethnicity *(RSV + influenza.a + influenza.b + hMPV + parainfluenza + rhinovirus ) , data=all1)
+
+modr2 <- lm(CAAP ~ agec + ethnicity *(RSV + influenza.a + influenza.b + hMPV + parainfluenza + rhinovirus ) , data=all1)
+
+modr3 <- lm(CAAP ~ ethnicity +agec*(RSV + influenza.a + influenza.b + hMPV + parainfluenza + rhinovirus ) , data=all1)
+
+modr4 <- lm(CAAP ~ ethnicity*(RSV + influenza.a + influenza.b + hMPV + parainfluenza + rhinovirus ) +
+              agec*(RSV + influenza.a + influenza.b + hMPV + parainfluenza + rhinovirus ) , data=all1)
+
+
+AIC(modr1, modr2, modr3,modr4)
+summary(modr)
+```
 
 

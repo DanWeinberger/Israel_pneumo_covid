@@ -18,13 +18,13 @@ attrib_pct_fmt_func_age <- function(ds, label1){
   attrib.pct.df$attrib_pct_ucl <- round(attrib.pct.df$attrib_pct_ucl)
   attrib.pct.df$attrib_pct_lcl <- round(attrib.pct.df$attrib_pct_lcl)
   
-  combos <- unique(attrib.pct.df[,c('agec','ethnicity')])
+  combos <- unique(attrib.pct.df[,c('agec')])
   attrib.pct.df$virus <- rep(c('any','rsv','hmpv','flu', 'adeno', 'paraflu'), each=nrow(combos))
   
   attrib.pct.df$attrib_pct_fmt_all_noncaap <- paste(attrib.pct.df$attrib_pct_med, '(',attrib.pct.df$attrib_pct_lcl,', ', attrib.pct.df$attrib_pct_ucl,')'   )
   
-  out.ds <- attrib.pct.df[,c('agec','ethnicity','virus', 'attrib_pct_fmt_all_noncaap')]
-  names(out.ds) <- c('agec','ethnicity','virus',label1)
+  out.ds <- attrib.pct.df[,c('agec','virus', 'attrib_pct_fmt_all_noncaap')]
+  names(out.ds) <- c('agec','virus',label1)
   
   return(out.ds)
 }

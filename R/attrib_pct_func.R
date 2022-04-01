@@ -52,11 +52,11 @@ attrib_pct_func <- function(ds){
                attrib_pct_ucl=quantile(attrib_pct_Virus, 0.975))
   
   attrib_pct_any_age <- preds.iter2 %>%
-    group_by( agec,ethnicity,variable) %>%
+    group_by( agec,variable) %>%
     summarize(pred=sum(pred), pred_NoVirus=sum(pred_NoVirus) ) %>%
     mutate(attrib_pct_Virus = 100*(pred-pred_NoVirus)/pred ) %>%
     ungroup() %>%
-    group_by(agec,ethnicity) %>%
+    group_by(agec) %>%
     summarize( attrib_pct_med = median(attrib_pct_Virus), 
                attrib_pct_lcl=quantile(attrib_pct_Virus, 0.025), 
                attrib_pct_ucl=quantile(attrib_pct_Virus, 0.975))
@@ -74,11 +74,11 @@ attrib_pct_func <- function(ds){
                attrib_pct_ucl=quantile(attrib_pct_RSV, 0.975))
   
   attrib_pct_RSV_age <- preds.iter2 %>%
-    group_by( agec,ethnicity,variable) %>%
+    group_by( agec,variable) %>%
     summarize(pred=sum(pred), pred_NoRSV=sum(pred_NoRSV) ) %>%
     mutate(attrib_pct_RSV = 100*(pred-pred_NoRSV)/pred ) %>%
     ungroup() %>%
-    group_by(agec,ethnicity) %>%
+    group_by(agec) %>%
     summarize( attrib_pct_med = median(attrib_pct_RSV), 
                attrib_pct_lcl=quantile(attrib_pct_RSV, 0.025), 
                attrib_pct_ucl=quantile(attrib_pct_RSV, 0.975))
@@ -95,11 +95,11 @@ attrib_pct_func <- function(ds){
                attrib_pct_ucl=quantile(attrib_pct_HMPV, 0.975))
   
   attrib_pct_HMPV_age <- preds.iter2 %>%
-    group_by( agec,ethnicity,variable) %>%
+    group_by( agec,variable) %>%
     summarize(pred=sum(pred), pred_NoHMPV=sum(pred_NoHMPV) ) %>%
     mutate(attrib_pct_HMPV = 100*(pred-pred_NoHMPV)/pred ) %>%
     ungroup() %>%
-    group_by(agec,ethnicity) %>%
+    group_by(agec) %>%
     summarize( attrib_pct_med = median(attrib_pct_HMPV), 
                attrib_pct_lcl=quantile(attrib_pct_HMPV, 0.025), 
                attrib_pct_ucl=quantile(attrib_pct_HMPV, 0.975))
@@ -115,11 +115,11 @@ attrib_pct_func <- function(ds){
                attrib_pct_ucl=quantile(attrib_pct_Flu, 0.975))
   
   attrib_pct_Flu_age <- preds.iter2 %>%
-    group_by( agec,ethnicity,variable) %>%
+    group_by( agec,variable) %>%
     summarize(pred=sum(pred), pred_NoFlu=sum(pred_NoFlu) ) %>%
     mutate(attrib_pct_Flu = 100*(pred-pred_NoFlu)/pred ) %>%
     ungroup() %>%
-    group_by(agec,ethnicity) %>%
+    group_by(agec) %>%
     summarize( attrib_pct_med = median(attrib_pct_Flu), 
                attrib_pct_lcl=quantile(attrib_pct_Flu, 0.025), 
                attrib_pct_ucl=quantile(attrib_pct_Flu, 0.975))
@@ -136,11 +136,11 @@ attrib_pct_func <- function(ds){
                attrib_pct_ucl=quantile(attrib_pct_Paraflu, 0.975))
   
   attrib_pct_Paraflu_age <- preds.iter2 %>%
-    group_by( agec,ethnicity,variable) %>%
+    group_by( agec,variable) %>%
     summarize(pred=sum(pred), pred_NoParaflu=sum(pred_NoParaflu) ) %>%
     mutate(attrib_pct_Paraflu = 100*(pred-pred_NoParaflu)/pred ) %>%
     ungroup() %>%
-    group_by(agec,ethnicity) %>%
+    group_by(agec) %>%
     summarize( attrib_pct_med = median(attrib_pct_Paraflu), 
                attrib_pct_lcl=quantile(attrib_pct_Paraflu, 0.025), 
                attrib_pct_ucl=quantile(attrib_pct_Paraflu, 0.975))
@@ -157,11 +157,11 @@ attrib_pct_func <- function(ds){
                attrib_pct_ucl=quantile(attrib_pct_Adeno, 0.975))
   
   attrib_pct_Adeno_age <- preds.iter2 %>%
-    group_by( agec,ethnicity,variable) %>%
+    group_by( agec,variable) %>%
     summarize(pred=sum(pred), pred_NoAdeno=sum(pred_NoAdeno) ) %>%
     mutate(attrib_pct_Adeno = 100*(pred-pred_NoAdeno)/pred ) %>%
     ungroup() %>%
-    group_by(agec,ethnicity) %>%
+    group_by(agec) %>%
     summarize( attrib_pct_med = median(attrib_pct_Adeno), 
                attrib_pct_lcl=quantile(attrib_pct_Adeno, 0.025), 
                attrib_pct_ucl=quantile(attrib_pct_Adeno, 0.975))
