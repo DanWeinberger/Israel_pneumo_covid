@@ -7,9 +7,14 @@ attrib_pct_fmt_func <- function(ds, label1){
   
   attrib.pct.flu <- ds$attrib_pct$attrib_pct_Flu
   
-  attrib.pct.df <- round(bind_rows(attrib.pct.any,attrib.pct.rsv,attrib.pct.hmpv,attrib.pct.flu))
+  attrib.pct.adeno <- ds$attrib_pct$attrib_pct_Adeno
   
-  attrib.pct.df$virus <- c('any','rsv','hmpv','flu')
+  attrib.pct.Paraflu <- ds$attrib_pct$attrib_pct_Paraflu
+  
+  
+  attrib.pct.df <- round(bind_rows(attrib.pct.any,attrib.pct.rsv,attrib.pct.hmpv,attrib.pct.flu,attrib.pct.adeno,attrib.pct.Paraflu))
+  
+  attrib.pct.df$virus <- c('any','rsv','hmpv','flu', 'adeno', 'paraflu')
   
   attrib.pct.df$attrib_pct_fmt_all_noncaap <- paste(attrib.pct.df$attrib_pct_med, '( ',attrib.pct.df$attrib_pct_lcl,', ', attrib.pct.df$attrib_pct_ucl,')'   )
   
