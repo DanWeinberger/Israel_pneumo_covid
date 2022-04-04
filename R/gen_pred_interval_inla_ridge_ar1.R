@@ -1,12 +1,9 @@
-gen_pred_interval_inla_ridge_ar1 <- function(X1,Zb,inla_obj, Za,  covar.df, outcome_name, source,offset1=NULL, sd.y, mean.y){
+gen_pred_interval_inla_ridge_ar1 <- function(X1,Zb,inla_obj, Za, r.samples, covar.df, outcome_name, source,offset1=NULL, sd.y, mean.y){
   
-  nrep1=1000
-  nrep2=1
-  
+
   mod.mat.comb <- cbind(X1, Za, Zb)
   
-  r.samples = inla.posterior.sample(nrep1, inla_obj)
-  
+    
   all.names <- dimnames(r.samples[[1]]$latent)[[1]] 
   
   X.names <- paste0(dimnames(X1)[[2]], ':1')
