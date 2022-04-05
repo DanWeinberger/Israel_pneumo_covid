@@ -1,7 +1,7 @@
 gen_pred_interval_inla_ridge_ar1 <- function(X1,Zb,inla_obj, Za, r.samples, covar.df, outcome_name, source,offset1=NULL, sd.y, mean.y){
   
 
-  mod.mat.comb <- cbind(X1, Za, Zb)
+  mod.mat.comb <- cbind(X1)
   
     
   all.names <- dimnames(r.samples[[1]]$latent)[[1]] 
@@ -15,21 +15,18 @@ gen_pred_interval_inla_ridge_ar1 <- function(X1,Zb,inla_obj, Za, r.samples, cova
   Zf.names <- all.names[grep('idx.Zf', all.names) ][-c(1:nrow(Zb))] 
   
   
-    t.names <- all.names[which(substring(all.names,1,2)=='t:')] #ar1 component from training data
+  t.names <- all.names[grep('agec_eth_t', all.names) ]
+  sin12.names <- all.names[grep('agec_eth_sin12', all.names) ]
+  cos12.names <- all.names[grep('agec_eth_cos12', all.names) ]
+  hmpv.names <- all.names[grep('agec_eth_hmpv', all.names) ]
+  rsv.names <- all.names[grep('agec_eth_rsv', all.names) ]
+  flua.names <- all.names[grep('agec_eth_flua', all.names) ]
+  flub.names <- all.names[grep('agec_eth_flub', all.names) ]
+  adeno.names <- all.names[grep('agec_eth_adeno', all.names) ]
+  paraflu.names <- all.names[grep('agec_eth_paraflu', all.names) ]
   
   
-  #AR1.obs is fit to the data pre-pandemic, then extrapolate after
-  # ar1.obs <- sapply(r.samples, function(x){
-  #   x$latent[t.names,, drop=F]
-  # })
-  # #matplot(ar1.obs, type='l')
-  # 
-  # ar1.obs <- as.data.frame(ar1.obs)
-  # names(ar1.obs) <- paste0('sampleAR', 1:ncol(ar1.obs))
-  # 
-  # ar1.obs$date <- sort(unique(covar.df$date))
-  
-  
+
   pred.names <- c(X.names,Za.names,Zb.names,Zc.names,
                   Zd.names, Ze.names, Zf.names)
   

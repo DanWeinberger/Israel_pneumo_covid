@@ -116,21 +116,40 @@ inla_model3 <- function(ds,outcome.var,prec.prior1=1,plot.var='CAAP'){
    sd.y <- sd(y, na.rm=T) 
    y.scale <- (y - mean.y)/sd.y
 
-   formula <- y.scale ~ -1  + X + f(idx.Za, model="z", Z=Za) +  
-     f(idx.Zb, model="z", Z=Zb) +
-     f(idx.Zc, model="z", Z=Zc) +
-     f(idx.Zd, model="z", Z=Zd) +
-     f(idx.Ze, model="z", Z=Ze) +
-     f(idx.Zf, model="z", Z=Zf)
-   
+
+   formula <- y.scale ~ -1  + X + 
+     f(agec_eth_t, t,  model="iid") +
+     f(agec_eth_sin12, sin12,  model="iid") +
+     f(agec_eth_cos12, cos12,  model="iid") +
+     f(agec_eth_hmpv, hMPV,  model="iid") +
+     f(agec_eth_rsv, RSV,  model="iid") +
+     f(agec_eth_flua, fluA,  model="iid") +
+     f(agec_eth_flub, fluB,  model="iid") +
+     f(agec_eth_adeno, adeno,  model="iid") +
+     f(agec_eth_paraflu, paraflu,  model="iid") 
+
    n <- nrow(ds)
    
-  mod.inla2 <- inla(formula, data = list(y.scale=y.scale, idx.Za = 1:n,idx.Zb = 1:n,
-                                         idx.Zc = 1:n,
-                                         idx.Zd = 1:n,
-                                         idx.Ze = 1:n,
-                                         idx.Zf = 1:n,
-                                         t=ds$t,
+  mod.inla2 <- inla(formula, data = list(y.scale=y.scale, 
+                                         t=ds$t, 
+                                         sin12=ds$sin12,
+                                         cos12=ds$cos12,
+                                         hMPV=ds$hMPV,
+                                         RSV=ds$RSV,
+                                         fluA=ds$influenza.a,
+                                         fluB=ds$influenza.b,
+                                         adeno=ds$respiratory.adenovirus,
+                                         paraflu=ds$parainfluenza,
+                                         agec_eth=ds$agec_eth,
+                                         agec_eth_t=ds$agec_eth,
+                                         agec_eth_sin12=ds$agec_eth,
+                                         agec_eth_cos12=ds$agec_eth,
+                                         agec_eth_hmpv=ds$agec_eth,
+                                         agec_eth_rsv=ds$agec_eth,
+                                         agec_eth_flua=ds$agec_eth,
+                                         agec_eth_flub=ds$agec_eth,
+                                         agec_eth_adeno=ds$agec_eth,
+                                         agec_eth_paraflu=ds$agec_eth,
                                          X=X), 
                     family='gaussian', 
                     control.predictor = list(compute=TRUE),
@@ -153,6 +172,7 @@ inla_model3 <- function(ds,outcome.var,prec.prior1=1,plot.var='CAAP'){
   r.samples = inla.posterior.sample(nrep1, mod.inla2)
   
   res1 <- pbmapply(FUN=gen_pred_interval_inla_ridge_ar1, X1=X.test,Zb=Zb.test, MoreArgs=list(inla_obj=mod.inla2,  r.samples=r.samples,covar.df=ds,Za=Za, outcome_name=plot.var,offset1= denom, sd.y=sd.y, mean.y=mean.y), SIMPLIFY=F)
+
   
   p1 <- Plot_Obs_exp_counterfact(ds=res1,plot.var=plot.var)
   
