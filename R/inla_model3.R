@@ -164,8 +164,15 @@ inla_model3 <- function(ds,outcome.var,prec.prior1=1,plot.var='CAAP'){
   t.increment <- all.ts[length(all.ts)] - all.ts[length(all.ts)-1] 
   
   X.test <- list('all'=X, 'NoFlu'=X.noflu, 'NoRSV'=X.norsv, 'noHMPV'=X.nohmpv, 'NoVirus'=X.novirus,'NoAdeno'=X.noadeno,'NoParaflu'=X.noparaflu)
-  #Zb.test <- list('all'=Z.virus, 'NoFlu'=Z.noflu, 'NoRSV'=Z.noRSV, 'noHMPV'=Z.noHMPV, 'NoVirus'=Z.novirus,'NoAdeno'=Z.noadeno,'NoParaflu'=Z.noparaflu)
-  res1 <- pbmapply(FUN=gen_pred_interval_inla_ridge_ar1, X1=X.test,Zb=Zb.test,  MoreArgs=list(inla_obj=mod.inla2, covar.df=ds,Za=Za, outcome_name=plot.var,offset1= denom, sd.y=sd.y, mean.y=mean.y), SIMPLIFY=F)
+  Zb.test <- list('all'=Z.virus, 'NoFlu'=Z.noflu, 'NoRSV'=Z.noRSV, 'noHMPV'=Z.noHMPV, 'NoVirus'=Z.novirus,'NoAdeno'=Z.noadeno,'NoParaflu'=Z.noparaflu)
+ 
+  nrep1=1000
+  nrep2=1
+  
+  r.samples = inla.posterior.sample(nrep1, mod.inla2)
+  
+  res1 <- pbmapply(FUN=gen_pred_interval_inla_ridge_ar1, X1=X.test,Zb=Zb.test, MoreArgs=list(inla_obj=mod.inla2,  r.samples=r.samples,covar.df=ds,Za=Za, outcome_name=plot.var,offset1= denom, sd.y=sd.y, mean.y=mean.y), SIMPLIFY=F)
+
   
   p1 <- Plot_Obs_exp_counterfact(ds=res1,plot.var=plot.var)
   
