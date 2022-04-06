@@ -197,17 +197,6 @@ res1.ipd.other.all <- mod.results$res1.ipd.other.all
 
 ```
 
-```{r}
-mod.results <- readRDS('./Results/model_fits.rds')
-
-res1.caap.pre <- mod.results$res1.caap.pre
-res1.caap.all <- mod.results$res1.caap.all
-res1.noncaap.pre <- mod.results$res1.noncaap.pre
-res1.noncaap.all <- mod.results$res1.noncaap.all
-res1.ipd.pneu.all <- mod.results$res1.ipd.pneu.all
-res1.ipd.other.all <- mod.results$res1.ipd.other.all
-```
-
 
 ```{r}
 

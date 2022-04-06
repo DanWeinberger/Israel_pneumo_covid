@@ -2,7 +2,7 @@ inla_model3 <- function(ds,outcome.var,prec.prior1=1,plot.var='CAAP'){
   #http://julianfaraway.github.io/brinla/examples/ridge.html
   #ds=ag3
   
-  ds$agec_eth <- as.factor( paste(ds$agec, ds$ethnicity, sep='_') )
+  ds$agec_eth <- as.factor(as.numeric(as.factor( paste(ds$agec, ds$ethnicity, sep='_') )))
   
   ds$year <- year(ds$date)
   ds$month <- month(ds$date)
@@ -18,41 +18,22 @@ inla_model3 <- function(ds,outcome.var,prec.prior1=1,plot.var='CAAP'){
   ds$parainfluenza <- ds$parainfluenza/max(ds$parainfluenza)
   
   #covars=c('RSV','hMPV','influenza.a','influenza.b')
-  covars=c('influenza.a','influenza.b','RSV','hMPV','respiratory.adenovirus','parainfluenza')
+  covars=c('RSV','hMPV','influenza.a','influenza.b','respiratory.adenovirus','parainfluenza')
   
   #RSV, hMPV: DIC=311; WAIC=345
   #RSV, hMPV, fluA, fluB: DIC: 302; WAIC: 349
   # + 'respiratory.adenovirus','parainfluenza': DIC: 302, WAIC=348
   
 
-  #eqn.x1 <- as.formula(paste0(" ~ 1+ agec_eth*(t.scale+ sin12+cos12  +", paste(covars, collapse='+') ,")"))
-  
-  #eqn.x1 <- as.formula(paste0(" ~ 1+ agec_eth + t.scale + sin12+cos12  +", paste(covars, collapse='+') ))
- 
-  #eqn.x1 <- as.formula(paste0(" ~ 1+ agec_eth*(t.scale+ sin12+cos12  + RSV + hMPV  + influenza.a + influenza.b +respiratory.adenovirus +parainfluenza" ,")"))
- 
   eqn.x1 <- as.formula(paste0(" ~ 1+ agec_eth + t.scale+ sin12+cos12 +" ,paste(covars, collapse='+')) ) 
   
- eqn.Za <-as.formula("~ -1+ agec_eth:t.scale + agec_eth:sin12 + agec_eth:cos12")
+ eqn.Za <-as.formula("~ -1+ agec_eth:t.scale + agec_eth:sin12 + agec_eth:cos12 + agec_eth:RSV + agec_eth:hMPV +
+                   agec_eth:influenza.a +agec_eth:influenza.b + agec_eth:respiratory.adenovirus +
+                   agec_eth:parainfluenza
+                     ")
  
- eqn.Zb <-as.formula("~ -1 + agec_eth:RSV ")
- eqn.Zc <-as.formula("~ -1 + agec_eth:hMPV ")
- eqn.Zd <-as.formula("~ -1 + agec_eth:influenza.a +agec_eth:influenza.b ")
- eqn.Ze <-as.formula("~ -1 + agec_eth:respiratory.adenovirus ")
- eqn.Zf <-as.formula("~ -1 + agec_eth:parainfluenza ")
+  Z <- model.matrix(eqn.Za, data=ds)
 
- eqn.Z.vir <-as.formula("~ -1 +agec_eth:RSV + agec_eth:hMPV + agec_eth:influenza.a +agec_eth:influenza.b + agec_eth:respiratory.adenovirus+ agec_eth:parainfluenza ")
- 
-  
-  Za <- model.matrix(eqn.Za, data=ds)
-  Zb <- model.matrix( eqn.Zb, data=ds)
-  Zc <- model.matrix( eqn.Zc, data=ds)
-  Zd <- model.matrix( eqn.Zd, data=ds)
-  Ze <- model.matrix( eqn.Ze, data=ds)
-  Zf <- model.matrix( eqn.Zf, data=ds)
-  
-  Z.virus <- cbind(Zb, Zc, Zd, Ze,Zf)
-  
   X <- model.matrix(eqn.x1, data=ds)
   
   ds.noflu <- ds
@@ -86,22 +67,12 @@ inla_model3 <- function(ds,outcome.var,prec.prior1=1,plot.var='CAAP'){
   X.noparaflu <- model.matrix(eqn.x1, data=ds.noparaflu)
   X.novirus <- model.matrix(eqn.x1, data=ds.novirus)
   
-  Zb.norsv <- model.matrix(eqn.Zb, data=ds.norsv)
-  Zc.nohmpv <- model.matrix(eqn.Zc, data=ds.nohmpv)
-  Zd.noflu <- model.matrix(eqn.Zd, data=ds.noflu)
-  
-  Ze.noadeno <- model.matrix(eqn.Ze, data=ds.noadeno)
-  Zf.noparaflu <- model.matrix(eqn.Zf, data=ds.noparaflu)
- 
-  Z.novirus <- model.matrix(eqn.Z.vir, data=ds.novirus)
-
-  Z.noRSV <- cbind(Zb.norsv, Zc, Zd, Ze,Zf)
-  Z.noHMPV <- cbind(Zb, Zc.nohmpv, Zd, Ze,Zf)
-  Z.noflu <- cbind(Zb, Zc, Zd.noflu, Ze,Zf)
-  Z.noadeno <- cbind(Zb, Zc, Zd, Ze.noadeno,Zf)
-  Z.noHMPV <- cbind(Zb, Zc.nohmpv, Zd, Ze,Zf)
-  Z.noparaflu <- cbind(Zb, Zc, Zd, Ze,Zf.noparaflu)
-  
+  Z.noRSV <- model.matrix(eqn.Za, data=ds.norsv)
+  Z.noHMPV <- model.matrix(eqn.Za, data=ds.nohmpv)
+  Z.noflu <- model.matrix(eqn.Za, data=ds.noflu)
+  Z.noadeno <- model.matrix(eqn.Za, data=ds.noadeno)
+  Z.noparaflu <- model.matrix(eqn.Za, data=ds.noparaflu)
+  Z.novirus <- model.matrix(eqn.Za, data=ds.novirus)
 
   denom = ds$pop/1000
 
@@ -116,19 +87,32 @@ inla_model3 <- function(ds,outcome.var,prec.prior1=1,plot.var='CAAP'){
    sd.y <- sd(y, na.rm=T) 
    y.scale <- (y - mean.y)/sd.y
 
-
+  prec.prior <- list(prec = list(prior = "loggamma", param = c(1, 0.00005))
+                   )
+   
+   # mod.ds <- cbind.data.frame(y.scale, X[,-1])
+   # mod.base <- lm(y.scale ~ . , data=mod.ds)
+   # pred.base <- predict(mod.base, newdata=mod.ds)                   
+   # resid.base  <- y.scale-pred.base
+   #                   
+    sdres <- sd(y.scale, na.rm=T)
+   # 
+    pcprior <- list(prec = list(prior="pc.prec", param = c(3*sdres,0.01)))
+   
    formula <- y.scale ~ -1  + X + 
-     f(agec_eth_t, t,  model="iid") +
-     f(agec_eth_sin12, sin12,  model="iid") +
-     f(agec_eth_cos12, cos12,  model="iid") +
-     f(agec_eth_hmpv, hMPV,  model="iid") +
-     f(agec_eth_rsv, RSV,  model="iid") +
-     f(agec_eth_flua, fluA,  model="iid") +
-     f(agec_eth_flub, fluB,  model="iid") +
-     f(agec_eth_adeno, adeno,  model="iid") +
-     f(agec_eth_paraflu, paraflu,  model="iid") 
+     f(agec_eth_t, t,  model="iid", hyper = prec.prior) +
+     f(agec_eth_sin12, sin12,  model="iid", hyper = prec.prior) +
+     f(agec_eth_cos12, cos12,  model="iid", hyper = prec.prior) +
+     f(agec_eth_rsv, RSV,  model="iid", hyper = prec.prior) +
+     f(agec_eth_hmpv, hMPV,  model="iid", hyper = prec.prior) +
+     f(agec_eth_flua, fluA,  model="iid", hyper = prec.prior) +
+     f(agec_eth_flub, fluB,  model="iid", hyper = prec.prior) +
+     f(agec_eth_adeno, adeno,  model="iid", hyper = prec.prior) +
+     f(agec_eth_paraflu, paraflu,  model="iid", hyper = prec.prior) 
 
    n <- nrow(ds)
+   
+   #Defult prior: plot(dgamma(1:1000,shape=1,scale=0.00005))
    
   mod.inla2 <- inla(formula, data = list(y.scale=y.scale, 
                                          t=ds$t, 
@@ -164,15 +148,16 @@ inla_model3 <- function(ds,outcome.var,prec.prior1=1,plot.var='CAAP'){
   t.increment <- all.ts[length(all.ts)] - all.ts[length(all.ts)-1] 
   
   X.test <- list('all'=X, 'NoFlu'=X.noflu, 'NoRSV'=X.norsv, 'noHMPV'=X.nohmpv, 'NoVirus'=X.novirus,'NoAdeno'=X.noadeno,'NoParaflu'=X.noparaflu)
-  Zb.test <- list('all'=Z.virus, 'NoFlu'=Z.noflu, 'NoRSV'=Z.noRSV, 'noHMPV'=Z.noHMPV, 'NoVirus'=Z.novirus,'NoAdeno'=Z.noadeno,'NoParaflu'=Z.noparaflu)
+  Zb.test <- list('all'=Z, 'NoFlu'=Z.noflu, 'NoRSV'=Z.noRSV, 'noHMPV'=Z.noHMPV, 'NoVirus'=Z.novirus,'NoAdeno'=Z.noadeno,'NoParaflu'=Z.noparaflu)
  
   nrep1=1000
   nrep2=1
   
   r.samples = inla.posterior.sample(nrep1, mod.inla2)
   
-  res1 <- pbmapply(FUN=gen_pred_interval_inla_ridge_ar1, X1=X.test,Zb=Zb.test, MoreArgs=list(inla_obj=mod.inla2,  r.samples=r.samples,covar.df=ds,Za=Za, outcome_name=plot.var,offset1= denom, sd.y=sd.y, mean.y=mean.y), SIMPLIFY=F)
-
+  #res1 <- pbmapply(FUN=gen_pred_interval_inla_ridge_ar1, X1=X.test,Zb=Zb.test, MoreArgs=list(inla_obj=mod.inla2,  r.samples=r.samples,covar.df=ds,Za=Za, outcome_name=plot.var,offset1= denom, sd.y=sd.y, mean.y=mean.y), SIMPLIFY=F)
+  res1 <- pbmapply(FUN=gen_pred_interval_inla_ridge_ar1, X1=X.test,Zb=Zb.test, MoreArgs=list(inla_obj=mod.inla2,nrep1=nrep1,nrep2=nrep2,  r.samples=r.samples,covar.df=ds, outcome_name=plot.var,offset1= denom, sd.y=sd.y, mean.y=mean.y), SIMPLIFY=F)
+  
   
   p1 <- Plot_Obs_exp_counterfact(ds=res1,plot.var=plot.var)
   

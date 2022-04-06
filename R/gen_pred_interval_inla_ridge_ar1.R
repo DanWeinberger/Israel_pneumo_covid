@@ -1,20 +1,13 @@
-gen_pred_interval_inla_ridge_ar1 <- function(X1,Zb,inla_obj, Za, r.samples, covar.df, outcome_name, source,offset1=NULL, sd.y, mean.y){
+gen_pred_interval_inla_ridge_ar1 <- function(X1,Zb,inla_obj,  r.samples, covar.df, outcome_name,nrep1, nrep2, source,offset1=NULL, sd.y, mean.y){
   
 
-  mod.mat.comb <- cbind(X1)
+  mod.mat.comb <- cbind(X1, Zb)
   
     
   all.names <- dimnames(r.samples[[1]]$latent)[[1]] 
   
   X.names <- paste0(dimnames(X1)[[2]], ':1')
-  Za.names <- all.names[grep('idx.Za', all.names) ][-c(1:nrow(Za))] 
-  Zb.names <- all.names[grep('idx.Zb', all.names) ][-c(1:nrow(Zb))] 
-  Zc.names <- all.names[grep('idx.Zc', all.names) ][-c(1:nrow(Zb))] 
-  Zd.names <- all.names[grep('idx.Zd', all.names) ][-c(1:nrow(Zb))] 
-  Ze.names <- all.names[grep('idx.Ze', all.names) ][-c(1:nrow(Zb))] 
-  Zf.names <- all.names[grep('idx.Zf', all.names) ][-c(1:nrow(Zb))] 
-  
-  
+
   t.names <- all.names[grep('agec_eth_t', all.names) ]
   sin12.names <- all.names[grep('agec_eth_sin12', all.names) ]
   cos12.names <- all.names[grep('agec_eth_cos12', all.names) ]
@@ -25,10 +18,9 @@ gen_pred_interval_inla_ridge_ar1 <- function(X1,Zb,inla_obj, Za, r.samples, cova
   adeno.names <- all.names[grep('agec_eth_adeno', all.names) ]
   paraflu.names <- all.names[grep('agec_eth_paraflu', all.names) ]
   
-  
+  Z.names <- c(t.names,sin12.names,cos12.names, rsv.names,hmpv.names, flua.names, flub.names,adeno.names,paraflu.names)
 
-  pred.names <- c(X.names,Za.names,Zb.names,Zc.names,
-                  Zd.names, Ze.names, Zf.names)
+  pred.names <- c(X.names,Z.names)
   
   # pred.names.check <- gsub(':1','', pred.names)
   #  sum(pred.names.check==colnames(mod.mat)) #order is correct
