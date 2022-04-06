@@ -18,6 +18,8 @@ library(htmlTable)
 #install.packages("waffle", repos = "https://cinc.rud.is")  
 library(waffle)
 library(pbapply)
+library(rjags)
+library(HDInterval)
 
 source('./R/format_carr.R')
 source('./R/format_caap.R')
@@ -164,6 +166,11 @@ all1$epiyr <- as.factor(all1$epiyr)
 all1$month <- as.factor(all1$month)
 
 all1 <- all1[!is.na(all1$agec),]
+
+```
+
+
+```{r}
 
 ```
 
