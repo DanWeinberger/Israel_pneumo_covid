@@ -159,7 +159,7 @@ lab1 <- dimnames(posterior_samples.all)[[2]]
 
 abbrevs.extract <- c('mu[','mu.no.virus','mu.no.rsv','mu.no.hmpv','mu.no.flu','mu.no.adeno','mu.no.paraflu')
 
-all.post.mu <- pblapply(abbrevs.extract, format_post_func1 , Y.mean=Y.mean, Y.sd=Y.sd,ds=posterior_samples.all)
+all.post.mu <- pblapply(abbrevs.extract, format_post_func1 , Y.mean=Y.mean, Y.sd=Y.sd,ds=posterior_samples.all,labs=lab1)
 
 names(all.post.mu) <- c('fitted','Virus','RSV','hMPV','Influenza','Adenovirus','Parainfluenza')
 

@@ -1,5 +1,5 @@
 #Format posteriors from JAGS into array
-format_post_func1 <- function(abbrev.subset='mu[',ds,labs=lab1, Y.mean, Y.sd){
+format_post_func1 <- function(abbrev.subset='mu[',ds,labs, Y.mean, Y.sd){
   scaled.data <- t(ds[, grep(abbrev.subset, labs, fixed=T)])
   orig.scale.data <- scaled.data*Y.sd + Y.mean
   
