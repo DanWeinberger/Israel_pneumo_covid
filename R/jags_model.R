@@ -1,10 +1,15 @@
-all1.m <- reshape2::melt(all1[,c('ethnicity','date','agec','CAAP','influenza.a','influenza.b','RSV','hMPV',
+jags_func <- function(ds=all1,outcome.var='CAAP', plot.var='CAAP'){
+all1.m <- reshape2::melt(ds[,c('ethnicity','date','agec',outcome.var,'influenza.a','influenza.b','RSV','hMPV',
                                  'respiratory.adenovirus','parainfluenza')] , id.vars=c('ethnicity','date','agec'))
 
 all1.c <- acast(all1.m, date ~ ethnicity~ agec~variable)
 str(all1.c)
 
-Y.scale <- (all1.c[,,,'CAAP'] - mean(all1.c[,,,'CAAP']))/ sd(all1.c[,,,'CAAP'])
+Y.scale <- (all1.c[,,,outcome.var] - mean(all1.c[,,,outcome.var],na.rm=T))/ sd(all1.c[,,,outcome.var], na.rm=T)
+Y=all1.c[,,,outcome.var]
+Y.mean <- mean(all1.c[,,,outcome.var] , na.rm=T) 
+Y.sd <- sd(all1.c[,,,outcome.var], na.rm=T)
+
 rsv <- all1.c[,,,'RSV'] / max(all1.c[,,,'RSV'])
 fluA <- all1.c[,,,'influenza.a'] / max(all1.c[,,,'influenza.a'])
 fluB <- all1.c[,,,'influenza.b'] / max(all1.c[,,,'influenza.b'])
@@ -12,23 +17,31 @@ hmpv <- all1.c[,,,'hMPV'] / max(all1.c[,,,'hMPV'])
 adeno <- all1.c[,,,'respiratory.adenovirus'] / max(all1.c[,,,'respiratory.adenovirus'])
 paraflu <- all1.c[,,,'parainfluenza'] / max(all1.c[,,,'parainfluenza'])
 
-N.times <- dim(all1.c)[1]
+out1 <- all1.c[,1,1,outcome.var]
+N.times.fit <- length(out1[!is.na(out1)])
+N.times.tot <- length(out1)
+
 t <- 1:N.times
 sin12 <- sin(2*pi*t/12)
-cos12 <- sin(2*pi*t/12)
+cos12 <- cos(2*pi*t/12)
 t.scale <- t/max(t)
 
 model_string<-"
     model{
          
+    for(t in 1:N.times.fit){ #time
+     for(i in 1:2){ #ethnicity
+       for(j in 1:3){ #age
+        y[t,i,j] ~ dnorm(mu[t,i,j], tau)
+       }
+     }
+    }
+    
     for(t in 1:Ntimes){ #time
      for(i in 1:2){ #ethnicity
        for(j in 1:3){ #age
     
-    
-    y[t,i,j] ~ dnorm(mu[t,i,j], tau)
-    
-    mu[t,i,j] <-  beta[1] + b[1,i,j] + 
+    mu[t,i,j] <-  (beta[1] + b[1,i,j] + 
                   beta[2]*sin12[t] + b[2,i,j]*sin12[t] + 
                   beta[3]*cos12[t]  + b[3,i,j]*cos12[t] + 
                   beta[4]*t.scale[t] +  b[4,i,j]*t.scale[t] + 
@@ -37,17 +50,17 @@ model_string<-"
                   beta[7]*flua[t,i,j] +  b[7,i,j]*flua[t,i,j] +
                   beta[8]*flub[t,i,j] +  b[8,i,j]*flub[t,i,j] +
                   beta[9]*adeno[t,i,j] +  b[9,i,j]*adeno[t,i,j] +
-                  beta[10]*paraflu[t,i,j] +  b[10,i,j]*paraflu[t,i,j] 
+                  beta[10]*paraflu[t,i,j] +  b[10,i,j]*paraflu[t,i,j] )
                   
         mu.no.rsv[t,i,j] <- mu[t,i,j] - (beta[5]*rsv[t,i,j] + b[5,i,j]*rsv[t,i,j] )
         mu.no.hmpv[t,i,j] <- mu[t,i,j] - (beta[6]*hmpv[t,i,j] +  b[6,i,j]*hmpv[t,i,j] )
         mu.no.flu[t,i,j] <- mu[t,i,j] - ( beta[7]*flua[t,i,j] +  b[7,i,j]*flua[t,i,j] +beta[8]*flub[t,i,j] +  b[8,i,j]*flub[t,i,j] )
         mu.no.adeno[t,i,j] <- mu[t,i,j] - (beta[9]*adeno[t,i,j] +  b[9,i,j]*adeno[t,i,j])
         mu.no.paraflu[t,i,j] <- mu[t,i,j] - ( beta[10]*paraflu[t,i,j] +  b[10,i,j]*paraflu[t,i,j] )
-        mu.no.virus[t,i,j] <- beta[1] + b[1,i,j] + 
+        mu.no.virus[t,i,j] <- ( beta[1] + b[1,i,j] + 
                   beta[2]*sin12[t] + b[2,i,j]*sin12[t] + 
                   beta[3]*cos12[t]  + b[3,i,j]*cos12[t] + 
-                  beta[4]*t.scale[t] +  b[4,i,j]*t.scale[t]
+                  beta[4]*t.scale[t] +  b[4,i,j]*t.scale[t] )
     
        }
      }
@@ -55,7 +68,7 @@ model_string<-"
     
     
     for(k in 1:10){
-      beta[k]~ dnorm(0, 5)
+      beta[k]~ dnorm(0, 1e-4)
       sd.b[k] ~ dunif(0,100)
       prec.b[k] <- 1/sd.b[k]^2
       
@@ -99,7 +112,8 @@ model_jags<-jags.model(model_spec,
                                  'paraflu'=paraflu,
                                  'flua'=fluA,
                                  'flub'=fluB,
-                                 'Ntimes'=N.times
+                                 'Ntimes'=N.times.tot,
+                                 'N.times.fit'=N.times.fit
                                  ),
                        n.adapt=10000, 
                        n.chains=3)
@@ -127,28 +141,46 @@ posterior_samples.all<-do.call(rbind,posterior_samples)
 #post1.summary<-summary(posterior_samples)
 #post_means<-colMeans(posterior_samples.all)
 post_means<-apply(posterior_samples.all, 2, median)
+
 sample.labs<-names(post_means)
+
 ci<-t(hdi(posterior_samples.all, credMass = 0.95))
+
 ci<-matrix(sprintf("%.1f",round(ci,1)), ncol=2)
+
 row.names(ci)<-sample.labs
+
 post_means<-sprintf("%.1f",round(post_means,1))
+
 names(post_means)<-sample.labs
 
 
 lab1 <- dimnames(posterior_samples.all)[[2]]
-post.mu <- array(posterior_samples.all[, grep('mu[', lab1, fixed=T)],dim=c(3000, dim(Y.scale)))
-post.mu.no.rsv <- array(posterior_samples.all[, grep('mu.no.rsv', lab1, fixed=T)],dim=c(3000, dim(Y.scale)))
-post.mu.no.hmpv <- array(posterior_samples.all[, grep('mu.no.hmpv', lab1, fixed=T)],dim=c(3000, dim(Y.scale)))
-post.mu.no.flu <- array(posterior_samples.all[, grep('mu.no.flu', lab1, fixed=T)],dim=c(3000, dim(Y.scale)))
-post.mu.no.adeno <- array(posterior_samples.all[, grep('mu.no.adeno', lab1, fixed=T)],dim=c(3000, dim(Y.scale)))
-post.mu.no.paraflu <- array(posterior_samples.all[, grep('mu.no.paraflu', lab1, fixed=T)],dim=c(3000, dim(Y.scale)))
-post.mu.no.virus <- array(posterior_samples.all[, grep('mu.no.virus', lab1, fixed=T)],dim=c(3000, dim(Y.scale)))
 
-all.post <- list('post.mu'=post.mu,'post.mu.no.rsv'=post.mu.no.rsv,'post.mu.no.hmpv'=post.mu.no.hmpv,
-                'post.mu.no.flu'=post.mu.no.flu, 'post.mu.no.adeno'=post.mu.no.adeno,'post.mu.no.paraflu'=post.mu.no.paraflu
-              ,'post.mu.no.virus'=post.mu.no.virus)
+abbrevs.extract <- c('mu[','mu.no.virus','mu.no.rsv','mu.no.hmpv','mu.no.flu','mu.no.adeno','mu.no.paraflu')
 
-res.list<-list('tabletext'=tabletext, 'summary_data'=summary_data,'overall.VE'=overall.VE,'st.VE'=st.VE)
+all.post.mu <- pblapply(abbrevs.extract, format_post_func1 , Y.mean=Y.mean, Y.sd=Y.sd)
+
+names(all.post.mu) <- c('fitted','Virus','RSV','hMPV','Influenza','Adenovirus','Parainfluenza')
+
+attrib.pct.overall <- t(sapply(all.post.mu[-1],attrib_pct_age_mcmc, fitted.ds=all.post.mu[[1]],  agg.level='overall' ))
+
+attrib.pct.agec.c <- sapply(all.post.mu[-1],attrib_pct_age_mcmc, fitted.ds=all.post.mu[[1]],  agg.level='agec', simplify='array' )
+attrib.pct.agec.m <- reshape2::melt(attrib.pct.agec.c)
+attrib.pct.agec <- reshape2::dcast(attrib.pct.agec.m, Var1+Var3 ~ Var2)
+names(attrib.pct.agec) <- c('agec','Virus','Attrib_pct','lcl','ucl')
+
+
+agec.preds <- pblapply(all.post.mu,fitted_ci_mcmc,   agg.level='agec' )
+overall.preds <- pblapply(all.post.mu,fitted_ci_mcmc,   agg.level='overall' )
+
+# Y.age <- apply(Y,c(1,3), sum)
+# plot(Y.age[,1], type='l', col='gray')
+# points(agec.preds[[1]][agec.preds[[1]]$agec==1,'pred'], type='l')
+# points(agec.preds[['Virus']][agec.preds[['Virus']]$agec==1,'pred'], type='l', col='red')
+
+
+res.list<-list('agec.preds'=agec.preds, 'overall.preds'=overall.preds,'attrib.pct.agec'=attrib.pct.agec,'attrib.pct.overall'=attrib.pct.overall)
+
 return(res.list)
-
 }

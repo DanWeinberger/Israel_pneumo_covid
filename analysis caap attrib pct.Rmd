@@ -17,6 +17,7 @@ library(tidyr)
 library(htmlTable)
 #install.packages("waffle", repos = "https://cinc.rud.is")  
 library(waffle)
+library(abind)
 library(pbapply)
 library(rjags)
 library(HDInterval)
@@ -31,6 +32,9 @@ source('./R/attrib_pct_func.R')
 source('./R/attrib_pct_fmt_func.R')
 source('./R/attrib_pct_fmt_func_age.R')
 source('./R/attrib_pct_waffle_age.R')
+source('./R/format_post_func1.R')
+source('./R/fitted_ci_mcmc.R')
+source('./R/attrib_pct_age_mcmc.R')
 
 source('./R/gen_pred_interval_inla_ridge_ar1.R')
 
@@ -183,12 +187,13 @@ all1 <- all1[!is.na(all1$agec),]
 Fit model to pre data only or to any 
 
 ```{r, eval=F}
-res1.caap.pre <- inla_model3(all1,  outcome.var='caap.pre', plot.var='CAAP')
-res1.caap.all <- inla_model3(all1,  outcome.var='CAAP', plot.var='CAAP')
-res1.noncaap.pre <- inla_model3(all1,  outcome.var='non.caap.pre', plot.var='nonCAAP')
-res1.noncaap.all <- inla_model3(all1,  outcome.var='nonCAAP', plot.var='nonCAAP')
-res1.ipd.pneu.all <- inla_model3(all1,  outcome.var='bacteremic.pneumonia', plot.var='bacteremic.pneumonia')
-res1.ipd.other.all <- inla_model3(all1,  outcome.var='other.IPD', plot.var='other.IPD')
+res1.caap.pre <- jags_func(all1,  outcome.var='caap.pre', plot.var='CAAP')
+res1.caap.all <- jags_func(all1,  outcome.var='CAAP', plot.var='CAAP')
+res1.noncaap.pre <- jags_func(all1,  outcome.var='non.caap.pre', plot.var='nonCAAP')
+res1.noncaap.all <- jags_func(all1,  outcome.var='nonCAAP', plot.var='nonCAAP')
+res1.ipd.pneu.all <- jags_func(all1,  outcome.var='bacteremic.pneumonia', plot.var='bacteremic.pneumonia')
+res1.ipd.other.all <- jags_func(all1,  outcome.var='other.IPD', plot.var='other.IPD')
+
 mod.results <- list( 'res1.caap.pre'=res1.caap.pre,'res1.caap.all'=res1.caap.all,'res1.noncaap.pre'=res1.noncaap.pre,'res1.noncaap.all'=res1.noncaap.all,'res1.ipd.pneu.all'=res1.ipd.pneu.all,'res1.ipd.other.all'=res1.ipd.other.all)
 saveRDS(mod.results,'./Results/model_fits.rds')
 ```
