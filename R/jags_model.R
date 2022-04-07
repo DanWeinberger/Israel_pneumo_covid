@@ -21,7 +21,7 @@ out1 <- all1.c[,1,1,outcome.var]
 N.times.fit <- length(out1[!is.na(out1)])
 N.times.tot <- length(out1)
 
-t <- 1:N.times
+t <- 1:N.times.tot
 sin12 <- sin(2*pi*t/12)
 cos12 <- cos(2*pi*t/12)
 t.scale <- t/max(t)
