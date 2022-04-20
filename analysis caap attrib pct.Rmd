@@ -17,7 +17,11 @@ library(tidyr)
 library(htmlTable)
 #install.packages("waffle", repos = "https://cinc.rud.is")  
 library(waffle)
+library(abind)
 library(pbapply)
+library(rjags)
+library(HDInterval)
+library(patchwork)
 
 source('./R/format_carr.R')
 source('./R/format_caap.R')
@@ -29,7 +33,11 @@ source('./R/attrib_pct_func.R')
 source('./R/attrib_pct_fmt_func.R')
 source('./R/attrib_pct_fmt_func_age.R')
 source('./R/attrib_pct_waffle_age.R')
-
+source('./R/format_post_func1.R')
+source('./R/fitted_ci_mcmc.R')
+source('./R/attrib_pct_age_mcmc.R')
+source('./R/jags_model.R')
+source('./R/plot_Obs_exp_counterfact_mcmc.R')
 source('./R/gen_pred_interval_inla_ridge_ar1.R')
 
 ```
@@ -168,6 +176,11 @@ all1 <- all1[!is.na(all1$agec),]
 ```
 
 
+```{r}
+
+```
+
+
 
 ## INLA MODELS
 
@@ -176,12 +189,13 @@ all1 <- all1[!is.na(all1$agec),]
 Fit model to pre data only or to any 
 
 ```{r, eval=F}
-res1.caap.pre <- inla_model3(all1,  outcome.var='caap.pre', plot.var='CAAP')
-res1.caap.all <- inla_model3(all1,  outcome.var='CAAP', plot.var='CAAP')
-res1.noncaap.pre <- inla_model3(all1,  outcome.var='non.caap.pre', plot.var='nonCAAP')
-res1.noncaap.all <- inla_model3(all1,  outcome.var='nonCAAP', plot.var='nonCAAP')
-res1.ipd.pneu.all <- inla_model3(all1,  outcome.var='bacteremic.pneumonia', plot.var='bacteremic.pneumonia')
-res1.ipd.other.all <- inla_model3(all1,  outcome.var='other.IPD', plot.var='other.IPD')
+res1.caap.pre <- jags_func(all1,  outcome.var='caap.pre', plot.var='CAAP')
+res1.caap.all <- jags_func(all1,  outcome.var='CAAP', plot.var='CAAP')
+res1.noncaap.pre <- jags_func(all1,  outcome.var='non.caap.pre', plot.var='nonCAAP')
+res1.noncaap.all <- jags_func(all1,  outcome.var='nonCAAP', plot.var='nonCAAP')
+res1.ipd.pneu.all <- jags_func(all1,  outcome.var='bacteremic.pneumonia', plot.var='bacteremic.pneumonia')
+res1.ipd.other.all <- jags_func(all1,  outcome.var='other.IPD', plot.var='other.IPD')
+
 mod.results <- list( 'res1.caap.pre'=res1.caap.pre,'res1.caap.all'=res1.caap.all,'res1.noncaap.pre'=res1.noncaap.pre,'res1.noncaap.all'=res1.noncaap.all,'res1.ipd.pneu.all'=res1.ipd.pneu.all,'res1.ipd.other.all'=res1.ipd.other.all)
 saveRDS(mod.results,'./Results/model_fits.rds')
 ```
@@ -196,70 +210,78 @@ res1.ipd.pneu.all <- mod.results$res1.ipd.pneu.all
 res1.ipd.other.all <- mod.results$res1.ipd.other.all
 ```
 
-```{r}
+Fit to pre-pandemic CAAP only
 
-res1.caap.pre$obs_exp_plot
+```{r, fig.width=9, fig.height=3}
 
+plot_Obs_exp_counterfact_mcmc(ds.in=res1.caap.pre, plot.var='CAAP', post.ci=T)
 ```
 
-```{r, fig.width=4, fig.height=4}
-res1.caap.pre$predict_plot
-```
+
 
 
 
 ## CAAP, fit to ALL data
 
-```{r}
-res1.caap.all$obs_exp_plot
+```{r, fig.width=9, fig.height=3}
+p1 <- plot_Obs_exp_counterfact_mcmc(ds.in=res1.caap.all, plot.var='CAAP') +
+  ggtitle('CAAP')
+p1
 ```
 
-```{r, fig.width=4, fig.height=4}
-res1.caap.all$predict_plot
+
+
+## non-CAAP, fit to all data
+
+
+```{r, fig.width=9, fig.height=3}
+p2 <- plot_Obs_exp_counterfact_mcmc(ds.in=res1.noncaap.all, plot.var='nonCAAP') +
+    ggtitle('non-CAAP')
+p2
 ```
 
 
-
-## non-CAAP, fit to pre data
-
-
-```{r}
-
-res1.noncaap.pre$obs_exp_plot
+## IPD pneumonia 
 
 
-res1.noncaap.all$obs_exp_plot
+```{r, fig.width=9, fig.height=3}
+p3 <- plot_Obs_exp_counterfact_mcmc(ds.in=res1.ipd.pneu.all, plot.var='bacteremic.pneumonia') +
+      ggtitle('IPD (pneumonia)')
+p3
+```
+
+## IPD non-pneumonia 
+
+```{r, fig.width=9, fig.height=3}
+p4 <- plot_Obs_exp_counterfact_mcmc(ds.in=res1.ipd.other.all, plot.var='other.IPD') +
+  ggtitle('IPD (other)')
+p4
+```
+
+
+```{r, fig.height=6, fig.width=6}
+p1/ p2/ p3 /p4
 
 ```
 
-Observed vs expected for IPD, fit to entire dataset
-```{r}
-
-res1.ipd.pneu.all$obs_exp_plot
-res1.ipd.other.all$obs_exp_plot
-
-```
 
 ## Compare attributable percents for different outcomes, etc
 ```{r}
-ap1 <- attrib_pct_fmt_func(res1.caap.all,'CAAP_all')
 
-ap2 <- attrib_pct_fmt_func(res1.caap.pre,'CAAP_pre')
+ap1 <- attrib_pct_fmt_func_mcmc('res1.caap.all','CAAP_all')
+
+ap3 <- attrib_pct_fmt_func_mcmc('res1.noncaap.all','NonCAAP_all')
 
 
-ap3 <- attrib_pct_fmt_func(res1.noncaap.all,'NonCAAP_all')
+ap5 <- attrib_pct_fmt_func_mcmc('res1.ipd.pneu.all','IPD_pneumonia_all')
 
-ap4 <- attrib_pct_fmt_func(res1.noncaap.pre,'NonCAAP_pre')
-
-ap5 <- attrib_pct_fmt_func(res1.ipd.pneu.all,'IPD_pneumonia_all')
-
-ap6 <- attrib_pct_fmt_func(res1.ipd.other.all,'IPD_other_all')
+ap6 <- attrib_pct_fmt_func_mcmc('res1.ipd.other.all','IPD_other_all')
 
 
 #htmlTable(cbind(ap2, ap4[,2], ap1[,2], ap3[,2]))
 
 
-tab1 <- htmlTable(cbind(ap1, ap3[,2], ap5[,2], ap6[,2]))
+tab1 <- htmlTable(cbind.data.frame(ap1, ap3[,-1, drop=F], ap5[,2, drop=F], ap6[,2, drop=F]))
 tab1
 
 out.df <- as.data.frame(cbind(ap1, ap3[,2], ap5[,2], ap6[,2]))
@@ -267,34 +289,46 @@ out.df <- as.data.frame(cbind(ap1, ap3[,2], ap5[,2], ap6[,2]))
 write.csv(out.df, './Results/overall_attrib.csv')
 
 ```
+
+
+```{r}
+ap2 <- attrib_pct_fmt_func_mcmc('res1.caap.pre','CAAP_pre')
+
+ap2
+
+write.csv(ap2, './Results/attrib_pct_caap_pre.csv')
+
+```
+
 Age
 ```{r}
-age_ap1 <- attrib_pct_fmt_func_age(res1.caap.all,'CAAP_all')
 
-age_ap2 <- attrib_pct_fmt_func_age(res1.caap.pre,'CAAP_pre')
+age_ap1 <- attrib_pct_fmt_func_age_mcmc('res1.caap.all','CAAP_all')
+
+age_ap3 <- attrib_pct_fmt_func_age_mcmc('res1.noncaap.all','NonCAAP_all')
 
 
-age_ap3 <- attrib_pct_fmt_func_age(res1.noncaap.all,'NonCAAP_all')
+age_ap5 <- attrib_pct_fmt_func_age_mcmc('res1.ipd.pneu.all','IPD_pneumonia_all')
 
-age_ap4 <- attrib_pct_fmt_func_age(res1.noncaap.pre,'NonCAAP_pre')
-
-age_ap5 <- attrib_pct_fmt_func_age(res1.ipd.pneu.all,'IPD_pneumonia_all')
-
-age_ap6 <- attrib_pct_fmt_func_age(res1.ipd.other.all,'IPD_other_all')
+age_ap6 <- attrib_pct_fmt_func_age_mcmc('res1.ipd.other.all','IPD_other_all')
 
 
 #htmlTable(cbind(ap2, ap4[,2], ap1[,2], ap3[,2]))
 
-combined.df <- cbind(age_ap1, age_ap3[,3], age_ap5[,3], age_ap6[,3])
+combined.df <- cbind(age_ap1, age_ap3[,3, drop=F], age_ap5[,3, drop=F], age_ap6[,3, drop=F])
 
-htmlTable(combined.df, rgroup=c('Any Virus','RSV','hMPV','Flu','Adeno', 'paraflu'), n.rgroup=rep(3,6) )
+combined.df <- combined.df[order(combined.df$Virus,combined.df$agec),]
+row.names(combined.df) <- NULL
 
-combined.df$virus <- factor(combined.df$virus, levels=c('any','rsv','hmpv','flu','adeno','paraflu'))
+combined.df$agec <- factor(combined.df$agec)
+#htmlTable(combined.df[,-c(2)], rgroup=c('Any Virus','RSV','hMPV','Flu','Adeno', 'paraflu'), n.rgroup=rep(3,6) ,rnames=F)
+
+#combined.df$virus <- factor(combined.df$virus, levels=c('any','rsv','hmpv','flu','adeno','paraflu'))
 
 
-combined.df2 <- combined.df[order(combined.df$agec, combined.df$virus),]
+combined.df2 <- combined.df[order(combined.df$agec, combined.df$Virus),]
 
-htmlTable(combined.df2, rgroup=c('<12m','12-23m','2-4y'), n.rgroup=rep(6,3) )
+htmlTable(combined.df2[,-1], rgroup=c('<12m','12-23m','2-4y'), n.rgroup=rep(6,3), rnames=F )
 
 
 combined.df3 <- as.data.frame(combined.df2)
@@ -303,7 +337,7 @@ write.csv(combined.df3, './Results/age_stratified_attrib.csv')
 ```
 
 ```{r, fig.width=6, fig.height=6}
-attrib_pct_waffle_age(res1.caap.all)
+attrib_pct_waffle_age_mcmc('res1.caap.all')
 
 ```
 
