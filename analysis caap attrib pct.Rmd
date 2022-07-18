@@ -33,12 +33,15 @@ source('./R/attrib_pct_func.R')
 source('./R/attrib_pct_fmt_func.R')
 source('./R/attrib_pct_fmt_func_age.R')
 source('./R/attrib_pct_waffle_age.R')
+source('./R/attrib_pct_waffle_age_mcmc.R')
+
 source('./R/format_post_func1.R')
 source('./R/fitted_ci_mcmc.R')
 source('./R/attrib_pct_age_mcmc.R')
 source('./R/jags_model.R')
 source('./R/plot_Obs_exp_counterfact_mcmc.R')
 source('./R/gen_pred_interval_inla_ridge_ar1.R')
+source('./R/attrib_pct_fmt_func_mcmc.R')
 
 ```
 
@@ -116,7 +119,7 @@ p4
 ```
 
 IPD
-This script just brings in data for kids <1 year
+This script just brings in data for kids <5 year
 ```{r}
 ipd1 <- format_ipd_func()
 
@@ -182,26 +185,27 @@ all1 <- all1[!is.na(all1$agec),]
 
 
 
-## INLA MODELS
+## JAGS MODELS
 
 ## CAAP, fit to pre-COVID data only
 
 Fit model to pre data only or to any 
 
 ```{r, eval=F}
-res1.caap.pre <- jags_func(all1,  outcome.var='caap.pre', plot.var='CAAP')
-res1.caap.all <- jags_func(all1,  outcome.var='CAAP', plot.var='CAAP')
-res1.noncaap.pre <- jags_func(all1,  outcome.var='non.caap.pre', plot.var='nonCAAP')
-res1.noncaap.all <- jags_func(all1,  outcome.var='nonCAAP', plot.var='nonCAAP')
-res1.ipd.pneu.all <- jags_func(all1,  outcome.var='bacteremic.pneumonia', plot.var='bacteremic.pneumonia')
-res1.ipd.other.all <- jags_func(all1,  outcome.var='other.IPD', plot.var='other.IPD')
+res1.caap.pre <- jags_poisson_func(all1,  outcome.var='caap.pre', plot.var='CAAP')
+
+res1.caap.all <- jags_poisson_func(all1,  outcome.var='CAAP', plot.var='CAAP')
+res1.noncaap.pre <- jags_poisson_func(all1,  outcome.var='non.caap.pre', plot.var='nonCAAP')
+res1.noncaap.all <- jags_poisson_func(all1,  outcome.var='nonCAAP', plot.var='nonCAAP')
+res1.ipd.pneu.all <- jags_poisson_func(all1,  outcome.var='bacteremic.pneumonia', plot.var='bacteremic.pneumonia')
+res1.ipd.other.all <- jags_poisson_func(all1,  outcome.var='other.IPD', plot.var='other.IPD')
 
 mod.results <- list( 'res1.caap.pre'=res1.caap.pre,'res1.caap.all'=res1.caap.all,'res1.noncaap.pre'=res1.noncaap.pre,'res1.noncaap.all'=res1.noncaap.all,'res1.ipd.pneu.all'=res1.ipd.pneu.all,'res1.ipd.other.all'=res1.ipd.other.all)
-saveRDS(mod.results,'./Results/model_fits.rds')
+saveRDS(mod.results,'./Results/model_fits_poisson.rds')
 ```
 
 ```{r}
-mod.results <- readRDS('./Results/model_fits.rds')
+mod.results <- readRDS('./Results/model_fits_poisson.rds')
 res1.caap.pre <- mod.results$res1.caap.pre
 res1.caap.all <- mod.results$res1.caap.all
 res1.noncaap.pre <- mod.results$res1.noncaap.pre
@@ -286,7 +290,7 @@ tab1
 
 out.df <- as.data.frame(cbind(ap1, ap3[,2], ap5[,2], ap6[,2]))
 
-write.csv(out.df, './Results/overall_attrib.csv')
+write.csv(out.df, './Results/overall_attrib_poisson.csv')
 
 ```
 
@@ -296,7 +300,7 @@ ap2 <- attrib_pct_fmt_func_mcmc('res1.caap.pre','CAAP_pre')
 
 ap2
 
-write.csv(ap2, './Results/attrib_pct_caap_pre.csv')
+write.csv(ap2, './Results/attrib_pct_caap_pre_poisson.csv')
 
 ```
 
@@ -332,14 +336,59 @@ htmlTable(combined.df2[,-1], rgroup=c('<12m','12-23m','2-4y'), n.rgroup=rep(6,3)
 
 
 combined.df3 <- as.data.frame(combined.df2)
-write.csv(combined.df3, './Results/age_stratified_attrib.csv')
+write.csv(combined.df3, './Results/age_stratified_attrib_poisson.csv')
 
 ```
+##WAFFLES
+```{r}
+caap.waffle <-
+  attrib_pct_waffle_age_mcmc(ds='res1.caap.all', outcomevar='CAAP', plot.title='A. CAAP', off.legend=T,fill.waffle=T)
+
+non.caap.waffle <-
+  attrib_pct_waffle_age_mcmc(ds='res1.noncaap.all', outcomevar='nonCAAP', plot.title='B. non-CAAP',fill.waffle=T)
+
+ipd.pneu.waffle <-
+  attrib_pct_waffle_age_mcmc(ds='res1.ipd.pneu.all', outcomevar='bacteremic.pneumonia', plot.title='C. IPD (pneumonia)',fill.waffle=T)
+
+ipd.other.waffle <-
+  attrib_pct_waffle_age_mcmc(ds='res1.ipd.other.all', outcomevar='other.IPD', plot.title='D. IPD (other)',fill.waffle=T)
+
+```
+
+
+## WAFFLE OF CAAP
+```{r}
+caap.waffle2 <-
+  attrib_pct_waffle_age_mcmc(ds='res1.caap.all', outcomevar='CAAP', plot.title='CAAP', off.legend=F,fill.waffle=F)
+caap.waffle2
+
+```
+
+## Waffle of CAAP and IPD Pneu
+```{r, fig.width=6, fig.height=4}
+caap.waffle <-
+  attrib_pct_waffle_age_mcmc(ds='res1.caap.all', outcomevar='CAAP', plot.title='A. CAAP', off.legend=T,fill.waffle=F)
+
+ipd.pneu.waffle <-
+  attrib_pct_waffle_age_mcmc(ds='res1.ipd.pneu.all', outcomevar='bacteremic.pneumonia', plot.title='B. IPD (pneumonia)',fill.waffle=F)
+
+combined <- (caap.waffle + ipd.pneu.waffle) & theme(legend.position = "right")
+
+combined+ plot_layout(guides='collect')
+```
+
+## WAFFLE OF ALL OUTCOMES
+
 
 ```{r, fig.width=6, fig.height=6}
-attrib_pct_waffle_age_mcmc('res1.caap.all')
 
+combined <- (caap.waffle + non.caap.waffle)/ (ipd.pneu.waffle + ipd.other.waffle) & theme(legend.position = "right")
+
+combined+ plot_layout(guides='collect')
 ```
+
+
+
 
 
 
