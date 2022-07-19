@@ -14,6 +14,7 @@ Y.mean <- mean(all1.c[,,,outcome.var] , na.rm=T)
 
 Y.sd <- sd(all1.c[,,,outcome.var], na.rm=T)
 
+#SCALLE ALL VIRUSES TO BE [0,1]
 rsv <- all1.c[,,,'RSV'] / max(all1.c[,,,'RSV'])
 fluA <- all1.c[,,,'influenza.a'] / max(all1.c[,,,'influenza.a'])
 fluB <- all1.c[,,,'influenza.b'] / max(all1.c[,,,'influenza.b'])
@@ -80,31 +81,33 @@ model_string<-"
     }
     
     
-    for(k in 1:10){
-      beta[k]~ dnorm(0, 1e-4)
-      sd.b[k] ~ dunif(0,100)
-      prec.b[k] <- 1/sd.b[k]^2
-    }
-      for(k in c(2:4)){ #trend and harmonics
+ 
+      for(k in 2:4){ #trend and harmonics
+          beta[k]~ dnorm(0, 1e-4)
+          sd.b[k] ~ dunif(0,100)
+          prec.b[k] <- 1/sd.b[k]^2
        for(i in 1:2){ #ethnicity
         for(j in 1:3){ #age
-      
-        delta[k,i,j] ~ dnorm(beta[k], prec.b[k] )
+         delta[k,i,j] ~ dnorm(beta[k], prec.b[k] )
         b[k,i,j] <-  delta[k,i,j]  #Do NOT restrict trend or harmonics to be  >0 
     
       }
      }
-    }
+      }
+    
       for(k in c(1,5:10)){
+           beta[k]~ dnorm(0, 1) #gets expontiated so N(0,1e-4) prior doesn't make a ton of sense
+          sd.b[k] ~ dunif(0,100)
+          prec.b[k] <- 1/sd.b[k]^2
        for(i in 1:2){ #ethnicity
         for(j in 1:3){ #age
-      
         delta[k,i,j] ~ dnorm(beta[k], prec.b[k] )
         b[k,i,j] <- exp(delta[k,i,j] ) 
     
+        }
+       }
       }
-     }
-    }
+    
    r ~ dunif(0,250)
 
              
