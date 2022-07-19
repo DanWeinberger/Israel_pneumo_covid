@@ -41,7 +41,7 @@ model_string<-"
          y[t,i,j]  ~ dnegbin(prob[t,i,j],r)
          prob[t,i,j]<- r/(r+mu[t,i,j])  ## likelihood 
         
-        mu[t,i,j] <- mu.scale[t,i,j]*Y.sd + Y.mean
+        #mu[t,i,j] <- mu.scale[t,i,j]*Y.sd + Y.mean
        }
      }
     }
@@ -50,7 +50,7 @@ model_string<-"
      for(i in 1:2){ #ethnicity
        for(j in 1:3){ #age
     
-    mu.scale[t,i,j] <-  ( b[1,i,j] + 
+    mu[t,i,j] <-  ( b[1,i,j] + 
                     b[2,i,j]*sin12[t] + 
                     b[3,i,j]*cos12[t] + 
                     b[4,i,j]*t.scale[t] + 
@@ -61,14 +61,14 @@ model_string<-"
                     b[9,i,j]*adeno[t,i,j] +
                     b[10,i,j]*paraflu[t,i,j] )
                   
-        mu.no.rsv[t,i,j] <- ( mu.scale[t,i,j] - (b[5,i,j]*rsv[t,i,j] )) 
+        mu.no.rsv[t,i,j] <- ( mu[t,i,j] - (b[5,i,j]*rsv[t,i,j] )) 
         
-        mu.no.hmpv[t,i,j] <-( mu.scale[t,i,j] - ( b[6,i,j]*hmpv[t,i,j] ))
-        mu.no.flu[t,i,j] <- (mu.scale[t,i,j] - (  b[7,i,j]*flua[t,i,j]  +  b[8,i,j]*flub[t,i,j] ))
+        mu.no.hmpv[t,i,j] <-( mu[t,i,j] - ( b[6,i,j]*hmpv[t,i,j] ))
+        mu.no.flu[t,i,j] <- (mu[t,i,j] - (  b[7,i,j]*flua[t,i,j]  +  b[8,i,j]*flub[t,i,j] ))
         
-        mu.no.adeno[t,i,j] <- (mu.scale[t,i,j] - (  b[9,i,j]*adeno[t,i,j]))
+        mu.no.adeno[t,i,j] <- (mu[t,i,j] - (  b[9,i,j]*adeno[t,i,j]))
         
-        mu.no.paraflu[t,i,j] <- (mu.scale[t,i,j] - (   b[10,i,j]*paraflu[t,i,j] ))
+        mu.no.paraflu[t,i,j] <- (mu[t,i,j] - (   b[10,i,j]*paraflu[t,i,j] ))
         
         mu.no.virus[t,i,j] <-   (  b[1,i,j] + 
                    b[2,i,j]*sin12[t] + 
@@ -84,9 +84,20 @@ model_string<-"
       beta[k]~ dnorm(0, 1e-4)
       sd.b[k] ~ dunif(0,100)
       prec.b[k] <- 1/sd.b[k]^2
+    }
+      for(k in c(2:4)){ #trend and harmonics
+       for(i in 1:2){ #ethnicity
+        for(j in 1:3){ #age
       
-     for(i in 1:2){ #ethnicity
-      for(j in 1:3){ #age
+        delta[k,i,j] ~ dnorm(beta[k], prec.b[k] )
+        b[k,i,j] <-  delta[k,i,j]  #Do NOT restrict trend or harmonics to be  >0 
+    
+      }
+     }
+    }
+      for(k in c(1,5:10)){
+       for(i in 1:2){ #ethnicity
+        for(j in 1:3){ #age
       
         delta[k,i,j] ~ dnorm(beta[k], prec.b[k] )
         b[k,i,j] <- exp(delta[k,i,j] ) 
@@ -117,8 +128,6 @@ model_spec<-textConnection(model_string)
 model_jags<-jags.model(model_spec, 
                        inits=list(inits1,inits2, inits3),
                        data=list('y' = Y,
-                                 'Y.mean'=Y.mean,
-                                 'Y.sd' = Y.sd,
                                  't.scale'=t.scale,
                                  'sin12'=sin12,
                                  'cos12'=cos12,
@@ -134,7 +143,7 @@ model_jags<-jags.model(model_spec,
                        n.adapt=10000, 
                        n.chains=3)
 
-params<-c('mu','mu.scale','r',
+params<-c('mu','r',
           'mu.no.rsv',
           'mu.no.hmpv',
           'mu.no.flu',
@@ -173,7 +182,7 @@ names(post_means)<-sample.labs
 
 lab1 <- dimnames(posterior_samples.all)[[2]]
 
-abbrevs.extract <- c('mu.scale[','mu.no.virus','mu.no.rsv','mu.no.hmpv','mu.no.flu','mu.no.adeno','mu.no.paraflu')
+abbrevs.extract <- c('mu[','mu.no.virus','mu.no.rsv','mu.no.hmpv','mu.no.flu','mu.no.adeno','mu.no.paraflu')
 
 all.post.mu <- pblapply(abbrevs.extract, format_post_func1 , Y.mean=Y.mean, Y.sd=Y.sd,ds=posterior_samples.all,labs=lab1)
 
