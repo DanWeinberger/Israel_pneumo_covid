@@ -39,6 +39,8 @@ source('./R/format_post_func1.R')
 source('./R/fitted_ci_mcmc.R')
 source('./R/attrib_pct_age_mcmc.R')
 source('./R/jags_model.R')
+source('./R/jags_model_poisson.R')
+
 source('./R/plot_Obs_exp_counterfact_mcmc.R')
 source('./R/gen_pred_interval_inla_ridge_ar1.R')
 source('./R/attrib_pct_fmt_func_mcmc.R')

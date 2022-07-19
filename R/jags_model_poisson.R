@@ -36,7 +36,10 @@ model_string<-"
     for(t in 1:N.times.fit){ #time
      for(i in 1:2){ #ethnicity
        for(j in 1:3){ #age
-        y[t,i,j] ~ dpois(mu[t,i,j])
+        #y[t,i,j] ~ dpois(mu[t,i,j])
+        
+         y[t,i,j]  ~ dnegbin(prob[t,i,j],r)
+         prob[t,i,j]<- r/(r+mu[t,i,j])  ## likelihood 
         
         mu[t,i,j] <- mu.scale[t,i,j]*Y.sd + Y.mean
        }
@@ -91,7 +94,8 @@ model_string<-"
       }
      }
     }
- 
+   r ~ dunif(0,250)
+
              
     }
 "
@@ -130,7 +134,7 @@ model_jags<-jags.model(model_spec,
                        n.adapt=10000, 
                        n.chains=3)
 
-params<-c('mu','mu.scale',
+params<-c('mu','mu.scale','r',
           'mu.no.rsv',
           'mu.no.hmpv',
           'mu.no.flu',
