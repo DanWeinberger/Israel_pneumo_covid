@@ -37,8 +37,7 @@ model_string<-"
     for(t in 1:N.times.fit){ #time
      for(i in 1:2){ #ethnicity
        for(j in 1:3){ #age
-        #y[t,i,j] ~ dpois(mu[t,i,j])
-        
+
          y[t,i,j]  ~ dnegbin(prob[t,i,j],r)
          prob[t,i,j]<- r/(r+mu[t,i,j])  ## likelihood 
         
