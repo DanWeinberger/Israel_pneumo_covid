@@ -259,7 +259,7 @@ ggsave('obs_exp_pre_CAAP_Fig 5 v4.tiff',path = './Results', width = 9, height = 
 ## CAAP, fit to ALL data
 
 ```{r, fig.width=9, fig.height=3}
-p1 <- plot_Obs_exp_counterfact_mcmc(ds.in=res1.caap.all, plot.var='CAAP') +
+p1 <- plot_Obs_exp_counterfact_mcmc(ds.in=res1.caap.all, plot.var='CAAP', grayselect = 'gray50') +
   ggtitle('CAAP')
 p1
 ```
@@ -270,7 +270,7 @@ p1
 
 
 ```{r, fig.width=9, fig.height=3}
-p2 <- plot_Obs_exp_counterfact_mcmc(ds.in=res1.noncaap.all, plot.var='nonCAAP') +
+p2 <- plot_Obs_exp_counterfact_mcmc(ds.in=res1.noncaap.all, plot.var='nonCAAP', grayselect = 'gray50') +
     ggtitle('non-CAAP')
 p2
 ```
@@ -280,7 +280,7 @@ p2
 
 
 ```{r, fig.width=9, fig.height=3}
-p3 <- plot_Obs_exp_counterfact_mcmc(ds.in=res1.ipd.pneu.all, plot.var='bacteremic.pneumonia') +
+p3 <- plot_Obs_exp_counterfact_mcmc(ds.in=res1.ipd.pneu.all, plot.var='bacteremic.pneumonia', grayselect = 'gray50') +
       ggtitle('IPD (pneumonia)')
 p3
 ```
@@ -288,7 +288,7 @@ p3
 ## IPD non-pneumonia 
 
 ```{r, fig.width=9, fig.height=3}
-p4 <- plot_Obs_exp_counterfact_mcmc(ds.in=res1.ipd.other.all, plot.var='other.IPD') +
+p4 <- plot_Obs_exp_counterfact_mcmc(ds.in=res1.ipd.other.all, plot.var='other.IPD', grayselect = 'gray50') +
   ggtitle('IPD (other)')
 p4
 ```
