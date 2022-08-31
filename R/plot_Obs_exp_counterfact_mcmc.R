@@ -13,15 +13,15 @@ plot_Obs_exp_counterfact_mcmc <- function(ds.in=res1.caap.all, plot.var='CAAP', 
   ds_novir$date <- min(all1$date) %m+% months(ds_novir$time) 
   
   ds_novir$agec <- as.character(ds_novir$agec)
-  ds_novir$agec[ds_novir$agec=='1'] <- '<12m'
-  ds_novir$agec[ds_novir$agec=='2'] <- '12-23m'
-  ds_novir$agec[ds_novir$agec=='3'] <- '24-59m'
+  ds_novir$agec[ds_novir$agec=='1'] <- '<1 year'
+  ds_novir$agec[ds_novir$agec=='2'] <- '1 year'
+  ds_novir$agec[ds_novir$agec=='3'] <- '2-4 years'
   ds_novir$agec <- as.factor(ds_novir$agec)
   
   ds$agec <- as.character(ds$agec)
-  ds$agec[ds$agec=='1'] <- '<12m'
-  ds$agec[ds$agec=='2'] <- '12-23m'
-  ds$agec[ds$agec=='3'] <- '24-59m'
+  ds$agec[ds$agec=='1'] <- '<1 year'
+  ds$agec[ds$agec=='2'] <- '1 year'
+  ds$agec[ds$agec=='3'] <- '2-4 years'
   ds$agec <- as.factor(ds$agec)
   
   

@@ -39,9 +39,9 @@ attrib_pct_waffle_age_mcmc <- function(ds, outcomevar,inc.denom=100000, plot.tit
   #10+62+6+16+7
   
   attrib.pct.df.plot$Age_group <- NA
-  attrib.pct.df.plot$Age_group[attrib.pct.df.plot$agec==1] <- '<12m'
-  attrib.pct.df.plot$Age_group[attrib.pct.df.plot$agec==2] <- '12-23m'
-  attrib.pct.df.plot$Age_group[attrib.pct.df.plot$agec==3] <- '24-59m'
+  attrib.pct.df.plot$Age_group[attrib.pct.df.plot$agec==1] <- '<1 year'
+  attrib.pct.df.plot$Age_group[attrib.pct.df.plot$agec==2] <- '1 year'
+  attrib.pct.df.plot$Age_group[attrib.pct.df.plot$agec==3] <- '2-4 years'
   
   attrib.pct.df.plot <- attrib.pct.df.plot[order(attrib.pct.df.plot$agec, attrib.pct.df.plot$Virus),]
   

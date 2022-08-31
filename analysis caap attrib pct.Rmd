@@ -271,7 +271,7 @@ p1
 
 ```{r, fig.width=9, fig.height=3}
 p2 <- plot_Obs_exp_counterfact_mcmc(ds.in=res1.noncaap.all, plot.var='nonCAAP', grayselect = 'gray50') +
-    ggtitle('non-CAAP')
+    ggtitle('non-CAAP LRI')
 p2
 ```
 
@@ -281,7 +281,7 @@ p2
 
 ```{r, fig.width=9, fig.height=3}
 p3 <- plot_Obs_exp_counterfact_mcmc(ds.in=res1.ipd.pneu.all, plot.var='bacteremic.pneumonia', grayselect = 'gray50') +
-      ggtitle('IPD (pneumonia)')
+      ggtitle('Pneumococcal bacteremic pneumonia')
 p3
 ```
 
@@ -289,7 +289,7 @@ p3
 
 ```{r, fig.width=9, fig.height=3}
 p4 <- plot_Obs_exp_counterfact_mcmc(ds.in=res1.ipd.other.all, plot.var='other.IPD', grayselect = 'gray50') +
-  ggtitle('IPD (other)')
+  ggtitle('Non-pneumonia IPD')
 p4
 ```
 
@@ -378,13 +378,13 @@ caap.waffle <-
   attrib_pct_waffle_age_mcmc(ds='res1.caap.all', outcomevar='CAAP', plot.title='A. CAAP', off.legend=T,fill.waffle=F)
 
 non.caap.waffle <-
-  attrib_pct_waffle_age_mcmc(ds='res1.noncaap.all', outcomevar='nonCAAP', plot.title='B. non-CAAP',fill.waffle=F)
+  attrib_pct_waffle_age_mcmc(ds='res1.noncaap.all', outcomevar='nonCAAP', plot.title='B. non-CAAP LRI',fill.waffle=F)
 
 ipd.pneu.waffle <-
-  attrib_pct_waffle_age_mcmc(ds='res1.ipd.pneu.all', outcomevar='bacteremic.pneumonia', plot.title='C. IPD (pneumonia)',fill.waffle=F)
+  attrib_pct_waffle_age_mcmc(ds='res1.ipd.pneu.all', outcomevar='bacteremic.pneumonia', plot.title='C. Pneumococcal bacteremic pneumonia',fill.waffle=F)
 
 ipd.other.waffle <-
-  attrib_pct_waffle_age_mcmc(ds='res1.ipd.other.all', outcomevar='other.IPD', plot.title='D. IPD (other)',fill.waffle=F)
+  attrib_pct_waffle_age_mcmc(ds='res1.ipd.other.all', outcomevar='other.IPD', plot.title='D. Non-pneumonia IPD',fill.waffle=F)
 
 ```
 
@@ -404,7 +404,7 @@ caap.waffle <-
   attrib_pct_waffle_age_mcmc(ds='res1.caap.all', outcomevar='CAAP', plot.title='A. CAAP', off.legend=T,fill.waffle=F)
 
 ipd.pneu.waffle <-
-  attrib_pct_waffle_age_mcmc(ds='res1.ipd.pneu.all', outcomevar='bacteremic.pneumonia', plot.title='B. IPD (pneumonia)',fill.waffle=F)
+  attrib_pct_waffle_age_mcmc(ds='res1.ipd.pneu.all', outcomevar='bacteremic.pneumonia', plot.title='B. Pneumococcal bacteremic pneumonia',fill.waffle=F)
 
 combined <- (caap.waffle + ipd.pneu.waffle) & theme(legend.position = "right")
 
