@@ -1,4 +1,4 @@
-plot_Obs_exp_counterfact_mcmc <- function(ds.in=res1.caap.all, plot.var='CAAP', post.ci=F){
+plot_Obs_exp_counterfact_mcmc <- function(ds.in=res1.caap.all, plot.var='CAAP', post.ci=F, grayselect='gray'){
   
   ds <- ds.in$agec.preds$fitted
   ds$date <- min(all1$date) %m+% months(ds$time) 
@@ -13,15 +13,15 @@ plot_Obs_exp_counterfact_mcmc <- function(ds.in=res1.caap.all, plot.var='CAAP', 
   ds_novir$date <- min(all1$date) %m+% months(ds_novir$time) 
   
   ds_novir$agec <- as.character(ds_novir$agec)
-  ds_novir$agec[ds_novir$agec=='1'] <- '<12m'
-  ds_novir$agec[ds_novir$agec=='2'] <- '12-23m'
-  ds_novir$agec[ds_novir$agec=='3'] <- '24-59m'
+  ds_novir$agec[ds_novir$agec=='1'] <- '<1 year'
+  ds_novir$agec[ds_novir$agec=='2'] <- '1 year'
+  ds_novir$agec[ds_novir$agec=='3'] <- '2-4 years'
   ds_novir$agec <- as.factor(ds_novir$agec)
   
   ds$agec <- as.character(ds$agec)
-  ds$agec[ds$agec=='1'] <- '<12m'
-  ds$agec[ds$agec=='2'] <- '12-23m'
-  ds$agec[ds$agec=='3'] <- '24-59m'
+  ds$agec[ds$agec=='1'] <- '<1 year'
+  ds$agec[ds$agec=='2'] <- '1 year'
+  ds$agec[ds$agec=='3'] <- '2-4 years'
   ds$agec <- as.factor(ds$agec)
   
   
@@ -36,7 +36,7 @@ plot_Obs_exp_counterfact_mcmc <- function(ds.in=res1.caap.all, plot.var='CAAP', 
   
   p1 <- ggplot(ds, aes(x=date, y=pred)) +
     geom_line( color='black', lty=1)+
-    geom_line(data=ds, aes_string(x='date', y=plot.var), color='gray', lty=1)+
+    geom_line(data=ds, aes_string(x='date', y=plot.var), color=grayselect, lty=1)+
     geom_line(data=ds_novir, aes(x=date, y=pred), col='red', lty=2)+
     facet_grid( ~agec) +
     #geom_vline(xintercept=ds$start.date[1], lty=2, col='gray')+

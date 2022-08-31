@@ -33,12 +33,18 @@ source('./R/attrib_pct_func.R')
 source('./R/attrib_pct_fmt_func.R')
 source('./R/attrib_pct_fmt_func_age.R')
 source('./R/attrib_pct_waffle_age.R')
+source('./R/attrib_pct_waffle_age_mcmc.R')
+
 source('./R/format_post_func1.R')
 source('./R/fitted_ci_mcmc.R')
 source('./R/attrib_pct_age_mcmc.R')
 source('./R/jags_model.R')
+source('./R/jags_model_poisson.R')
+
 source('./R/plot_Obs_exp_counterfact_mcmc.R')
 source('./R/gen_pred_interval_inla_ridge_ar1.R')
+source('./R/attrib_pct_fmt_func_mcmc.R')
+source('./R/attrib_pct_fmt_func_age_mcmc.R')
 
 ```
 
@@ -113,10 +119,20 @@ p4 <- ggplot(c3, aes(x=date, y=nonCAAP, group=ethnicity, col=ethnicity)) +
   ggtitle('non-CAAP by age group and ethnicity')
 p4
 
+
+test <- c3 %>%
+  mutate(year=year(date)) %>%
+  group_by(agec, year, date) %>% #sum across ethnicity
+  summarize(N_caap=sum(CAAP), pop=sum(pop)) %>%
+  ungroup() %>%
+  group_by(agec, year) %>%
+    summarize(N_caap=sum(N_caap), pop=mean(pop)) %>%
+  mutate(inc=N_caap/pop*100000)
+
 ```
 
 IPD
-This script just brings in data for kids <1 year
+This script just brings in data for kids <5 year
 ```{r}
 ipd1 <- format_ipd_func()
 
@@ -182,26 +198,27 @@ all1 <- all1[!is.na(all1$agec),]
 
 
 
-## INLA MODELS
+## JAGS MODELS
 
 ## CAAP, fit to pre-COVID data only
 
 Fit model to pre data only or to any 
 
 ```{r, eval=F}
-res1.caap.pre <- jags_func(all1,  outcome.var='caap.pre', plot.var='CAAP')
-res1.caap.all <- jags_func(all1,  outcome.var='CAAP', plot.var='CAAP')
-res1.noncaap.pre <- jags_func(all1,  outcome.var='non.caap.pre', plot.var='nonCAAP')
-res1.noncaap.all <- jags_func(all1,  outcome.var='nonCAAP', plot.var='nonCAAP')
-res1.ipd.pneu.all <- jags_func(all1,  outcome.var='bacteremic.pneumonia', plot.var='bacteremic.pneumonia')
-res1.ipd.other.all <- jags_func(all1,  outcome.var='other.IPD', plot.var='other.IPD')
+res1.caap.pre <- jags_poisson_func(all1,  outcome.var='caap.pre', plot.var='CAAP')
+
+res1.caap.all <- jags_poisson_func(all1,  outcome.var='CAAP', plot.var='CAAP')
+res1.noncaap.pre <- jags_poisson_func(all1,  outcome.var='non.caap.pre', plot.var='nonCAAP')
+res1.noncaap.all <- jags_poisson_func(all1,  outcome.var='nonCAAP', plot.var='nonCAAP')
+res1.ipd.pneu.all <- jags_poisson_func(all1,  outcome.var='bacteremic.pneumonia', plot.var='bacteremic.pneumonia')
+res1.ipd.other.all <- jags_poisson_func(all1,  outcome.var='other.IPD', plot.var='other.IPD')
 
 mod.results <- list( 'res1.caap.pre'=res1.caap.pre,'res1.caap.all'=res1.caap.all,'res1.noncaap.pre'=res1.noncaap.pre,'res1.noncaap.all'=res1.noncaap.all,'res1.ipd.pneu.all'=res1.ipd.pneu.all,'res1.ipd.other.all'=res1.ipd.other.all)
-saveRDS(mod.results,'./Results/model_fits.rds')
+saveRDS(mod.results,'./Results/model_fits_poisson.rds')
 ```
 
 ```{r}
-mod.results <- readRDS('./Results/model_fits.rds')
+mod.results <- readRDS('./Results/model_fits_poisson.rds')
 res1.caap.pre <- mod.results$res1.caap.pre
 res1.caap.all <- mod.results$res1.caap.all
 res1.noncaap.pre <- mod.results$res1.noncaap.pre
@@ -210,11 +227,29 @@ res1.ipd.pneu.all <- mod.results$res1.ipd.pneu.all
 res1.ipd.other.all <- mod.results$res1.ipd.other.all
 ```
 
-Fit to pre-pandemic CAAP only
+## Fit to pre-pandemic CAAP only. figure 5
 
 ```{r, fig.width=9, fig.height=3}
 
-plot_Obs_exp_counterfact_mcmc(ds.in=res1.caap.pre, plot.var='CAAP', post.ci=T)
+plot_Obs_exp_counterfact_mcmc(ds.in=res1.caap.pre, plot.var='CAAP', post.ci=T) + ylab('Cases')
+
+ggsave('obs_exp_pre_CAAP_Fig 5 v1.tiff',path = './Results', width = 9, height = 3, device='tiff', dpi=400)
+
+
+plot_Obs_exp_counterfact_mcmc(ds.in=res1.caap.pre, plot.var='CAAP', post.ci=T, grayselect = 'gray50' ) + ylab('Cases')
+
+ggsave('obs_exp_pre_CAAP_Fig 5 v2.tiff',path = './Results', width = 9, height = 3, device='tiff', dpi=400)
+
+
+plot_Obs_exp_counterfact_mcmc(ds.in=res1.caap.pre, plot.var='CAAP', post.ci=T, grayselect = 'gray25' ) + ylab('Cases')
+
+ggsave('obs_exp_pre_CAAP_Fig 5 v3.tiff',path = './Results', width = 9, height = 3, device='tiff', dpi=400)
+
+
+plot_Obs_exp_counterfact_mcmc(ds.in=res1.caap.pre, plot.var='CAAP', post.ci=T, grayselect = '#377eb8' ) + ylab('Cases')
+
+ggsave('obs_exp_pre_CAAP_Fig 5 v4.tiff',path = './Results', width = 9, height = 3, device='tiff', dpi=400)
+
 ```
 
 
@@ -224,7 +259,7 @@ plot_Obs_exp_counterfact_mcmc(ds.in=res1.caap.pre, plot.var='CAAP', post.ci=T)
 ## CAAP, fit to ALL data
 
 ```{r, fig.width=9, fig.height=3}
-p1 <- plot_Obs_exp_counterfact_mcmc(ds.in=res1.caap.all, plot.var='CAAP') +
+p1 <- plot_Obs_exp_counterfact_mcmc(ds.in=res1.caap.all, plot.var='CAAP', grayselect = 'gray50') +
   ggtitle('CAAP')
 p1
 ```
@@ -235,8 +270,8 @@ p1
 
 
 ```{r, fig.width=9, fig.height=3}
-p2 <- plot_Obs_exp_counterfact_mcmc(ds.in=res1.noncaap.all, plot.var='nonCAAP') +
-    ggtitle('non-CAAP')
+p2 <- plot_Obs_exp_counterfact_mcmc(ds.in=res1.noncaap.all, plot.var='nonCAAP', grayselect = 'gray50') +
+    ggtitle('non-CAAP LRI')
 p2
 ```
 
@@ -245,22 +280,24 @@ p2
 
 
 ```{r, fig.width=9, fig.height=3}
-p3 <- plot_Obs_exp_counterfact_mcmc(ds.in=res1.ipd.pneu.all, plot.var='bacteremic.pneumonia') +
-      ggtitle('IPD (pneumonia)')
+p3 <- plot_Obs_exp_counterfact_mcmc(ds.in=res1.ipd.pneu.all, plot.var='bacteremic.pneumonia', grayselect = 'gray50') +
+      ggtitle('Pneumococcal bacteremic pneumonia')
 p3
 ```
 
 ## IPD non-pneumonia 
 
 ```{r, fig.width=9, fig.height=3}
-p4 <- plot_Obs_exp_counterfact_mcmc(ds.in=res1.ipd.other.all, plot.var='other.IPD') +
-  ggtitle('IPD (other)')
+p4 <- plot_Obs_exp_counterfact_mcmc(ds.in=res1.ipd.other.all, plot.var='other.IPD', grayselect = 'gray50') +
+  ggtitle('Non-pneumonia IPD')
 p4
 ```
 
 
 ```{r, fig.height=6, fig.width=6}
 p1/ p2/ p3 /p4
+
+ggsave('composite_ts.tiff',path = './Results', width = 7, height = 6, device='tiff', dpi=400)
 
 ```
 
@@ -286,7 +323,7 @@ tab1
 
 out.df <- as.data.frame(cbind(ap1, ap3[,2], ap5[,2], ap6[,2]))
 
-write.csv(out.df, './Results/overall_attrib.csv')
+write.csv(out.df, './Results/overall_attrib_poisson.csv')
 
 ```
 
@@ -296,7 +333,7 @@ ap2 <- attrib_pct_fmt_func_mcmc('res1.caap.pre','CAAP_pre')
 
 ap2
 
-write.csv(ap2, './Results/attrib_pct_caap_pre.csv')
+write.csv(ap2, './Results/attrib_pct_caap_pre_poisson.csv')
 
 ```
 
@@ -332,14 +369,68 @@ htmlTable(combined.df2[,-1], rgroup=c('<12m','12-23m','2-4y'), n.rgroup=rep(6,3)
 
 
 combined.df3 <- as.data.frame(combined.df2)
-write.csv(combined.df3, './Results/age_stratified_attrib.csv')
+write.csv(combined.df3, './Results/age_stratified_attrib_poisson.csv')
+
+```
+##WAFFLES
+```{r}
+caap.waffle <-
+  attrib_pct_waffle_age_mcmc(ds='res1.caap.all', outcomevar='CAAP', plot.title='A. CAAP', off.legend=T,fill.waffle=F)
+
+non.caap.waffle <-
+  attrib_pct_waffle_age_mcmc(ds='res1.noncaap.all', outcomevar='nonCAAP', plot.title='B. non-CAAP LRI',fill.waffle=F)
+
+ipd.pneu.waffle <-
+  attrib_pct_waffle_age_mcmc(ds='res1.ipd.pneu.all', outcomevar='bacteremic.pneumonia', plot.title='C. Pneumococcal bacteremic pneumonia',fill.waffle=F)
+
+ipd.other.waffle <-
+  attrib_pct_waffle_age_mcmc(ds='res1.ipd.other.all', outcomevar='other.IPD', plot.title='D. Non-pneumonia IPD',fill.waffle=F)
 
 ```
 
+
+## WAFFLE OF CAAP
+```{r, dpi=600}
+caap.waffle2 <-
+  attrib_pct_waffle_age_mcmc(ds='res1.caap.all', outcomevar='CAAP', plot.title='CAAP', off.legend=F,fill.waffle=F,n.waffles=1000)
+caap.waffle2
+ggsave('waffle1.tiff',path = './Results', width = 7, height = 5, device='tiff', dpi=400)
+
+```
+
+## Waffle of CAAP and IPD Pneu
+```{r, fig.width=6, fig.height=4}
+caap.waffle <-
+  attrib_pct_waffle_age_mcmc(ds='res1.caap.all', outcomevar='CAAP', plot.title='A. CAAP', off.legend=T,fill.waffle=F)
+
+ipd.pneu.waffle <-
+  attrib_pct_waffle_age_mcmc(ds='res1.ipd.pneu.all', outcomevar='bacteremic.pneumonia', plot.title='B. Pneumococcal bacteremic pneumonia',fill.waffle=F)
+
+combined <- (caap.waffle + ipd.pneu.waffle) & theme(legend.position = "right")
+
+combined+ plot_layout(guides='collect')
+```
+
+## WAFFLE OF ALL OUTCOMES
+
+Figure S8
 ```{r, fig.width=6, fig.height=6}
-attrib_pct_waffle_age_mcmc('res1.caap.all')
+
+combined <- (caap.waffle + non.caap.waffle)/ (ipd.pneu.waffle + ipd.other.waffle) & theme(legend.position = "right")
+
+combined+ plot_layout(guides='collect') & 
+     scale_fill_manual(name = NULL,
+                       values = c("#999999", "#E69F00", "#56B4E9", "#009E73", 
+                                  "#F0E442", "#0072B2" ),
+                       labels = c("Other Virus/None", "RSV", "Influenza","hMPV","Parainfluenza","Adenovirus"), drop=F )
+
+
+ggsave('waffle_figS8.tiff',path = './Results', width = 6, height = 6, device='tiff', dpi=400)
 
 ```
+
+
+
 
 
 
