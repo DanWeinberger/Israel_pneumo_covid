@@ -232,6 +232,8 @@ res1.ipd.other.all <- mod.results$res1.ipd.other.all
 
 ```{r, fig.width=9, fig.height=3}
 
+res1.caap.pre$attrib.pct.overall
+
 plot_Obs_exp_counterfact_mcmc(ds.in=res1.caap.pre, plot.var='CAAP', post.ci=T) + ylab('Cases')
 
 ggsave('obs_exp_pre_CAAP_Fig 5 v1.svg',path = './Results', width = 9, height = 3, device='svg', dpi=400)
