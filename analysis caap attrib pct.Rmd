@@ -1,7 +1,7 @@
 ---
 title: "pneumo israel"
 author: "Dan Weinberger"
-date: "2/11/2021"
+date: "1/18/2023"
 output: html_document
 ---
 
@@ -145,58 +145,41 @@ ipd1$p.ipd_pneu
 
 Combine the virus, carriage and X-rays datasets
 ```{r}
-all1 <- merge(c3, carr2.c, by=c('ethnicity', 'agec', 'date'), all=T)
 
-all1 <- all1[!is.na(all1$CAAP) & all1$date>='2016-01-01',]
+ipd1$ds <- ipd1$ds %>%
+  select(-pop)
 
-all1$prev[is.na(all1$prev)] <-0
-
-all1 <- merge(all1, ipd1$ds[,c('agec','ethnicity','date','bacteremic.pneumonia','other.IPD')], by=c('ethnicity', 'agec', 'date'), all.x=T)
-
-
-all1 <- merge(all1, vir2.c, by=c('ethnicity', 'date'), all=T)
-
-
-all1$ethnicity <- as.factor(all1$ethnicity)
-
-all1$agec <- as.factor(all1$agec)
-
-all1$caap.pre <- all1$CAAP
-
-all1$caap.pre[all1$date>=as.Date('2020-03-01')] <- NA
-
-all1$non.caap.pre <- all1$nonCAAP
-all1$non.caap.pre[all1$date>=as.Date('2020-03-01')] <- NA
-
-all1$t <- interval(min(all1$date), all1$date) %/% months(1) 
-all1$sin12 <- sin(2*pi*all1$t/12)
-all1$cos12 <- cos(2*pi*all1$t/12)
-
-all1$sin6 <- sin(2*pi*all1$t/6)
-all1$cos6 <- cos(2*pi*all1$t/6)
-
-all1$sin3 <- sin(2*pi*all1$t/3)
-all1$cos3 <- cos(2*pi*all1$t/3)
-
-all1$year <- year(all1$date)
-all1$month <- month(all1$date)
-
-all1$epiyr <- all1$year
-all1$epiyr[all1$month<=6] <- all1$year[all1$month<=6]  - 1
-all1$epiyr[all1$epiyr >2019] <- 2019
-all1$epiyr <- as.factor(all1$epiyr)
-
-all1$month <- as.factor(all1$month)
-
-all1 <- all1[!is.na(all1$agec),]
-
+all1 <- c3 %>%
+  mutate(date=as.Date(date)) %>%
+  full_join(carr2.c, by=c('ethnicity', 'agec', 'date') ) %>%
+  filter( !is.na(CAAP) & date >= '2016-01-01') %>%
+  mutate(prev = if_else(is.na(prev),0, prev)) %>%
+  left_join(ipd1$ds, by=c('ethnicity', 'agec', 'date')) %>%
+  mutate(date=as.Date(date)) %>%
+  tidyr::complete( date = seq.Date(from=as.Date('2016-01-01'), to=as.Date('2022-12-01'), by='month'), ethnicity, agec) %>%
+  left_join( vir2.c, by=c('ethnicity', 'date')) %>%
+  mutate(ethnicity=as.factor(ethnicity), 
+         agec=as.factor(agec),
+         caap.pre = if_else(date<as.Date('2020-03-01'), CAAP, NA_real_ ),
+         non.caap.pre = if_else(date<as.Date('2020-03-01'), nonCAAP, NA_real_ )) %>%
+  arrange(agec, ethnicity, date) %>%
+  group_by(agec, ethnicity) %>%
+  mutate(t= row_number(), 
+         sin12 = sin(2*pi*t/12),
+         cos12 = cos(2*pi*t/12),
+         sin6 = sin(2*pi*t/6),
+         cos6 = cos(2*pi*t/6),
+         sin3 = sin(2*pi*t/3),
+         cos3 = cos(2*pi*t/3), 
+         year=year(date),
+         month=month(date),
+         epiyr = if_else(month<=6, year-1, year),
+         epiyr=if_else(epiyr>2019, 2019, epiyr),
+         epiyr=as.factor(epiyr),
+         month=as.factor(month)
+         ) %>%
+  filter(!is.na(agec))
 ```
-
-
-```{r}
-
-```
-
 
 
 ## JAGS MODELS
@@ -220,239 +203,38 @@ saveRDS(mod.results,'./Results/model_fits_poisson.rds')
 
 ```{r}
 mod.results <- readRDS('./Results/model_fits_poisson.rds')
-res1.caap.pre <- mod.results$res1.caap.pre
+
 res1.caap.all <- mod.results$res1.caap.all
-res1.noncaap.pre <- mod.results$res1.noncaap.pre
 res1.noncaap.all <- mod.results$res1.noncaap.all
 res1.ipd.pneu.all <- mod.results$res1.ipd.pneu.all
 res1.ipd.other.all <- mod.results$res1.ipd.other.all
-```
 
-## Fit to pre-pandemic CAAP only. figure 5
+preds.caap <-  mod.results$res1.caap.all$agec.preds$fitted %>%
+  mutate(outcome='CAAP')
 
-```{r, fig.width=9, fig.height=3}
+preds.non.caap <-  mod.results$res1.noncaap.all$agec.preds$fitted %>%
+  mutate(outcome='nonCAAP')
 
-res1.caap.pre$attrib.pct.overall
+preds.non.ipd.pneu <-  mod.results$res1.ipd.pneu.all$agec.preds$fitted %>%
+  mutate(outcome='IPD_pneumonia')
 
-plot_Obs_exp_counterfact_mcmc(ds.in=res1.caap.pre, plot.var='CAAP', post.ci=T) + ylab('Cases')
+preds.non.ipd.non.pneu <-  mod.results$res1.ipd.other.all$agec.preds$fitted %>%
+  mutate(outcome='IPD_Non_pneumonia')
 
-ggsave('obs_exp_pre_CAAP_Fig 5 v1.svg',path = './Results', width = 9, height = 3, device='svg', dpi=400)
+all.preds <- bind_rows(preds.caap,preds.non.caap,preds.non.ipd.pneu,preds.non.ipd.non.pneu) %>%
+  mutate(date= as.Date('2016-01-01') + months(time-1) )
 
+write.csv(all.preds,'Results/pred2022.csv')
 
-plot_Obs_exp_counterfact_mcmc(ds.in=res1.caap.pre, plot.var='CAAP', post.ci=T, grayselect = 'gray50' ) + ylab('Cases')
-
-ggsave('obs_exp_pre_CAAP_Fig 5 v2.tiff',path = './Results', width = 9, height = 3, device='tiff', dpi=400)
-
-
-plot_Obs_exp_counterfact_mcmc(ds.in=res1.caap.pre, plot.var='CAAP', post.ci=T, grayselect = 'gray25' ) + ylab('Cases')
-
-ggsave('obs_exp_pre_CAAP_Fig 5 v3.tiff',path = './Results', width = 9, height = 3, device='tiff', dpi=400)
-
-
-plot_Obs_exp_counterfact_mcmc(ds.in=res1.caap.pre, plot.var='CAAP', post.ci=T, grayselect = '#377eb8' ) + ylab('Cases')
-
-ggsave('obs_exp_pre_CAAP_Fig 5 v4.tiff',path = './Results', width = 9, height = 3, device='tiff', dpi=400)
+ggplot(all.preds, aes(x=date, y=pred)) +
+  geom_line()+
+  theme_minimal()+
+  facet_grid(outcome~ agec, scales='free_y')
 
 ```
 
 
 
 
-
-## CAAP, fit to ALL data
-
-```{r, fig.width=9, fig.height=3}
-p1 <- plot_Obs_exp_counterfact_mcmc(ds.in=res1.caap.all, plot.var='CAAP', grayselect = 'gray50') +
-  ggtitle('CAAP')
-p1
-```
-
-
-
-## non-CAAP, fit to all data
-
-
-```{r, fig.width=9, fig.height=3}
-p2 <- plot_Obs_exp_counterfact_mcmc(ds.in=res1.noncaap.all, plot.var='nonCAAP', grayselect = 'gray50') +
-    ggtitle('non-CAAP LRI')
-p2
-```
-
-
-## IPD pneumonia 
-
-
-```{r, fig.width=9, fig.height=3}
-p3 <- plot_Obs_exp_counterfact_mcmc(ds.in=res1.ipd.pneu.all, plot.var='bacteremic.pneumonia', grayselect = 'gray50') +
-      ggtitle('Pneumococcal bacteremic pneumonia')
-p3
-```
-
-## IPD non-pneumonia 
-
-```{r, fig.width=9, fig.height=3}
-p4 <- plot_Obs_exp_counterfact_mcmc(ds.in=res1.ipd.other.all, plot.var='other.IPD', grayselect = 'gray50') +
-  ggtitle('Non-pneumonia IPD')
-p4
-```
-
-
-```{r, fig.height=6, fig.width=6}
-p1/ p2/ p3 /p4
-
-ggsave('composite_ts.svg',path = './Results', width = 7, height = 6, device='svg', dpi=400)
-
-```
-
-
-## Compare attributable percents for different outcomes, etc
-```{r}
-
-ap1 <- attrib_pct_fmt_func_mcmc('res1.caap.all','CAAP_all')
-
-ap3 <- attrib_pct_fmt_func_mcmc('res1.noncaap.all','NonCAAP_all')
-
-
-ap5 <- attrib_pct_fmt_func_mcmc('res1.ipd.pneu.all','IPD_pneumonia_all')
-
-ap6 <- attrib_pct_fmt_func_mcmc('res1.ipd.other.all','IPD_other_all')
-
-
-#htmlTable(cbind(ap2, ap4[,2], ap1[,2], ap3[,2]))
-
-
-tab1 <- htmlTable(cbind.data.frame(ap1, ap3[,-1, drop=F], ap5[,2, drop=F], ap6[,2, drop=F]))
-tab1
-
-out.df <- as.data.frame(cbind(ap1, ap3[,2], ap5[,2], ap6[,2]))
-
-write.csv(out.df, './Results/overall_attrib_poisson.csv')
-
-```
-
-
-```{r}
-ap2 <- attrib_pct_fmt_func_mcmc('res1.caap.pre','CAAP_pre')
-
-ap2
-
-write.csv(ap2, './Results/attrib_pct_caap_pre_poisson.csv')
-
-```
-
-Age
-```{r}
-
-age_ap1 <- attrib_pct_fmt_func_age_mcmc('res1.caap.all','CAAP_all')
-
-age_ap3 <- attrib_pct_fmt_func_age_mcmc('res1.noncaap.all','NonCAAP_all')
-
-
-age_ap5 <- attrib_pct_fmt_func_age_mcmc('res1.ipd.pneu.all','IPD_pneumonia_all')
-
-age_ap6 <- attrib_pct_fmt_func_age_mcmc('res1.ipd.other.all','IPD_other_all')
-
-
-#htmlTable(cbind(ap2, ap4[,2], ap1[,2], ap3[,2]))
-
-combined.df <- cbind(age_ap1, age_ap3[,3, drop=F], age_ap5[,3, drop=F], age_ap6[,3, drop=F])
-
-combined.df <- combined.df[order(combined.df$Virus,combined.df$agec),]
-row.names(combined.df) <- NULL
-
-combined.df$agec <- factor(combined.df$agec)
-#htmlTable(combined.df[,-c(2)], rgroup=c('Any Virus','RSV','hMPV','Flu','Adeno', 'paraflu'), n.rgroup=rep(3,6) ,rnames=F)
-
-#combined.df$virus <- factor(combined.df$virus, levels=c('any','rsv','hmpv','flu','adeno','paraflu'))
-
-
-combined.df2 <- combined.df[order(combined.df$agec, combined.df$Virus),]
-
-htmlTable(combined.df2[,-1], rgroup=c('<12m','12-23m','2-4y'), n.rgroup=rep(6,3), rnames=F )
-
-
-combined.df3 <- as.data.frame(combined.df2)
-write.csv(combined.df3, './Results/age_stratified_attrib_poisson.csv')
-
-```
-##WAFFLES
-```{r}
-caap.waffle <-
-  attrib_pct_waffle_age_mcmc(ds='res1.caap.all', outcomevar='CAAP', plot.title='A. CAAP', off.legend=T,fill.waffle=F)
-
-non.caap.waffle <-
-  attrib_pct_waffle_age_mcmc(ds='res1.noncaap.all', outcomevar='nonCAAP', plot.title='B. non-CAAP LRI',fill.waffle=F)
-
-ipd.pneu.waffle <-
-  attrib_pct_waffle_age_mcmc(ds='res1.ipd.pneu.all', outcomevar='bacteremic.pneumonia', plot.title='C. Pneumococcal bacteremic pneumonia',fill.waffle=F)
-
-ipd.other.waffle <-
-  attrib_pct_waffle_age_mcmc(ds='res1.ipd.other.all', outcomevar='other.IPD', plot.title='D. Non-pneumonia IPD',fill.waffle=F)
-
-```
-
-
-## WAFFLE OF CAAP
-```{r, dpi=600}
-caap.waffle2 <-
-  attrib_pct_waffle_age_mcmc(ds='res1.caap.all', outcomevar='CAAP', plot.title='CAAP', off.legend=F,fill.waffle=F,n.waffles=1000)
-caap.waffle2
-ggsave('waffle1.svg',path = './Results', width = 7, height = 5, device='svg', dpi=400)
-
-```
-
-## Waffle of CAAP and IPD Pneu
-```{r, fig.width=6, fig.height=4}
-caap.waffle <-
-  attrib_pct_waffle_age_mcmc(ds='res1.caap.all', outcomevar='CAAP', plot.title='A. CAAP', off.legend=T,fill.waffle=F)
-
-ipd.pneu.waffle <-
-  attrib_pct_waffle_age_mcmc(ds='res1.ipd.pneu.all', outcomevar='bacteremic.pneumonia', plot.title='B. Pneumococcal bacteremic pneumonia',fill.waffle=F)
-
-combined <- (caap.waffle + ipd.pneu.waffle) & theme(legend.position = "right")
-
-combined+ plot_layout(guides='collect')
-```
-
-## WAFFLE OF ALL OUTCOMES
-
-Figure S8
-```{r, fig.width=6, fig.height=6}
-
-combined <- (caap.waffle + non.caap.waffle)/ (ipd.pneu.waffle + ipd.other.waffle) & theme(legend.position = "right")
-
-combined+ plot_layout(guides='collect') & 
-     scale_fill_manual(name = NULL,
-                       values = c("#999999", "#E69F00", "#56B4E9", "#009E73", 
-                                  "#F0E442", "#0072B2" ),
-                       labels = c("Other Virus/None", "RSV", "Influenza","hMPV","Parainfluenza","Adenovirus"), drop=F )
-
-
-ggsave('waffle_figS8.svg',path = './Results', width = 6, height = 6, device='svg', dpi=400)
-
-```
-
-
-
-
-
-
-Rhino--only available in recent times
-```{r}
-
-all1$out.scale <- scale(all1$CAAP/all1$pop*1000)
-modr1 <- lm(CAAP ~ agec*ethnicity *(RSV + influenza.a + influenza.b + hMPV + parainfluenza + rhinovirus ) , data=all1)
-
-modr2 <- lm(CAAP ~ agec + ethnicity *(RSV + influenza.a + influenza.b + hMPV + parainfluenza + rhinovirus ) , data=all1)
-
-modr3 <- lm(CAAP ~ ethnicity +agec*(RSV + influenza.a + influenza.b + hMPV + parainfluenza + rhinovirus ) , data=all1)
-
-modr4 <- lm(CAAP ~ ethnicity*(RSV + influenza.a + influenza.b + hMPV + parainfluenza + rhinovirus ) +
-              agec*(RSV + influenza.a + influenza.b + hMPV + parainfluenza + rhinovirus ) , data=all1)
-
-
-AIC(modr1, modr2, modr3,modr4)
-summary(modr)
-```
 
 

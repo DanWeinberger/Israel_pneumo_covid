@@ -32,6 +32,6 @@ c3 <- reshape2::dcast(c2.m, agec + ethnicity + Date  ~ vartype)
 
 names(c3)[1:3] <- c('agec','ethnicity','date')
 
-c3 <- c3[c3$date>='2016-01-01',]
+c3 <- c3[c3$date>'2015-12-31',]
 return(c3)
 }

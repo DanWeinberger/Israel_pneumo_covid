@@ -1,5 +1,8 @@
 format_virus <- function(){
-  vir1 <- read_excel('./DONOTSYNC/Bart Adriaan_van der_All Viruses 2016-2021.xlsx',guess_max =50000)
+  vir1a <- read_excel('./DONOTSYNC/Bart Adriaan_van der_All Viruses 2016-2021.xlsx',guess_max =50000)
+  vir1b <- read_excel('./DONOTSYNC/All Viruses 2022.xlsx',guess_max =50000)
+  
+  vir1 <- bind_rows(vir1a, vir1b)
   
   vir1$date <- as.Date(paste(vir1$year,vir1$month,'01', sep='-'))
   
