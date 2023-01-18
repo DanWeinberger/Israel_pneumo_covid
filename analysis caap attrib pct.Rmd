@@ -216,10 +216,10 @@ preds.non.caap <-  mod.results$res1.noncaap.all$agec.preds$fitted %>%
   mutate(outcome='nonCAAP')
 
 preds.non.ipd.pneu <-  mod.results$res1.ipd.pneu.all$agec.preds$fitted %>%
-  mutate(outcome='IPD_pneumonia')
+  mutate(outcome='bacteremic.pneumonia')
 
 preds.non.ipd.non.pneu <-  mod.results$res1.ipd.other.all$agec.preds$fitted %>%
-  mutate(outcome='IPD_Non_pneumonia')
+  mutate(outcome='other.IPD')
 
 all.preds <- bind_rows(preds.caap,preds.non.caap,preds.non.ipd.pneu,preds.non.ipd.non.pneu) %>%
   mutate(date= as.Date('2016-01-01') + months(time-1) )
@@ -232,6 +232,27 @@ ggplot(all.preds, aes(x=date, y=pred)) +
   facet_grid(outcome~ agec, scales='free_y')
 
 ```
+
+```{r}
+obs <- all1 %>%
+  select(date, ethnicity, agec,CAAP, nonCAAP,bacteremic.pneumonia ,other.IPD) %>%
+  group_by(agec, date) %>%
+  summarize(CAAP=sum(CAAP), nonCAAP=sum(nonCAAP),bacteremic.pneumonia=sum(bacteremic.pneumonia) ,other.IPD=sum(other.IPD) ) %>%
+  ungroup() %>%
+  reshape2::melt(.,id.vars=c('agec', 'date')) %>%
+  rename(Obs=value ,outcome=variable) %>%
+  mutate(agec=as.numeric(agec))
+
+all.preds %>%
+  left_join(obs, by=c('agec','date', 'outcome')) %>%
+  ggplot( aes(x=date, y=pred)) +
+  geom_line()+
+  geom_line(aes(x=date, y=Obs),color='gray')+
+    theme_minimal()+
+  facet_grid(outcome~ agec, scales='free_y')
+
+```
+
 
 
 
