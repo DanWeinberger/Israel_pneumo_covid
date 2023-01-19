@@ -204,11 +204,6 @@ saveRDS(mod.results,'./Results/model_fits_poisson.rds')
 ```{r}
 mod.results <- readRDS('./Results/model_fits_poisson.rds')
 
-res1.caap.all <- mod.results$res1.caap.all
-res1.noncaap.all <- mod.results$res1.noncaap.all
-res1.ipd.pneu.all <- mod.results$res1.ipd.pneu.all
-res1.ipd.other.all <- mod.results$res1.ipd.other.all
-
 preds.caap <-  mod.results$res1.caap.all$agec.preds$fitted %>%
   mutate(outcome='CAAP')
 
@@ -232,7 +227,6 @@ ggplot(all.preds, aes(x=date, y=pred)) +
   facet_grid(outcome~ agec, scales='free_y')
 
 ```
-
 ```{r}
 obs <- all1 %>%
   select(date, ethnicity, agec,CAAP, nonCAAP,bacteremic.pneumonia ,other.IPD) %>%
@@ -253,9 +247,38 @@ all.preds %>%
 
 ```
 
+## Overall obs vs expected
 
 
+```{r}
+mod.results <- readRDS('./Results/model_fits_poisson.rds')
 
+preds.caap.all <-  mod.results$res1.caap.all$overall.preds$fitted %>%
+  as.data.frame() %>%
+  mutate(outcome='CAAP',time= row_number(),date= as.Date('2016-01-01') + months(time-1))
+
+preds.non.caap.all <-  mod.results$res1.noncaap.all$overall.preds$fitted %>%
+    as.data.frame() %>%
+  mutate(outcome='nonCAAP',time= row_number(),date= as.Date('2016-01-01') + months(time-1))
+
+preds.non.ipd.pneu.all <-  mod.results$res1.ipd.pneu.all$overall.preds$fitted %>%
+  as.data.frame() %>%
+    mutate(outcome='bacteremic.pneumonia',time= row_number(),date= as.Date('2016-01-01') + months(time-1))
+
+preds.non.ipd.non.pneu.all <-  mod.results$res1.ipd.other.all$overall.preds$fitted %>%
+  as.data.frame() %>%
+    mutate(outcome='other.IPD',time= row_number(),date= as.Date('2016-01-01') + months(time-1))
+
+all.preds.overall <- bind_rows(preds.caap.all,preds.non.caap.all,preds.non.ipd.pneu.all,preds.non.ipd.non.pneu.all) 
+write.csv(all.preds.overall,'Results/pred2022.overall.csv')
+
+ggplot(all.preds.overall, aes(x=date, y=med.pred)) +
+  geom_line()+
+  theme_minimal()+
+  ylim(0,NA)+
+  facet_wrap(~ outcome, scales='free_y')
+
+```
 
 
 
