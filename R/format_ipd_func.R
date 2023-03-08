@@ -12,7 +12,7 @@ format_ipd_func <- function(){
   c2.m$ethnicity <- NA
   c2.m$ethnicity[grep('.Jewish',c2.m$variable, fixed=T)] <- "J" 
   c2.m$ethnicity[grep('nonJewish',c2.m$variable)] <- "B" #Not actually bedouins, but we will use it
-  c2.m$ethnicity[grep('total',c2.m$variable)] <- "T" 
+  c2.m$ethnicity[grep('total',tolower(c2.m$variable))] <- "T" 
   
   c2.m$agec <- NA
   c2.m$agec[grep('under1y',c2.m$variable)] <- 1
@@ -50,6 +50,11 @@ format_ipd_func <- function(){
     facet_wrap(~agec)
   
   
+  ##check
+  # c3 %>%
+  #   group_by(agec) %>%
+  #   summarize(N_pneu=sum(bacteremic.pneumonia), N_non_pnum=sum(other.IPD))
+  # 
   out.list=list('ds'=c3,'p.ipd_pneu'=p.ipd_pneu,'p.ipd_other'=p.ipd_other)
   return(out.list)
 }
