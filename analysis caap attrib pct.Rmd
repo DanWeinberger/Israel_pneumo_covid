@@ -189,6 +189,12 @@ all1 <- c3 %>%
 Fit model to pre data only or to any 
 
 ```{r, eval=F}
+out <- all1 %>%
+  select(date, ethnicity, agec, CAAP, RSV, influenza.a, influenza.b,parainfluenza, respiratory.adenovirus)
+write.csv(out, './DONOTSYNC/processed_ts.csv')
+```
+
+```{r, eval=F}
 res1.caap.pre <- jags_poisson_func(all1,  outcome.var='caap.pre', plot.var='CAAP')
 
 res1.caap.all <- jags_poisson_func(all1,  outcome.var='CAAP', plot.var='CAAP')
